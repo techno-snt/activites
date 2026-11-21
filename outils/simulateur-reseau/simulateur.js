@@ -636,6 +636,68 @@
     reader.readAsText(file);
   }
 
+  /* ----- Zoom, déplacement du plan, clavier, terminal, icônes de la palette ----- */
+  var VB = { x: 0, y: 0, w: 1000, h: 520 };
+  function applyVB() { svg.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h); }
+  function zoom(f) {
+    var cx = VB.x + VB.w / 2, cy = VB.y + VB.h / 2;
+    var nw = clamp(VB.w * f, 500, 1600), k = nw / VB.w;
+    VB.w = nw; VB.h = VB.h * k;
+    VB.x = cx - VB.w / 2; VB.y = cy - VB.h / 2;
+    applyVB();
+  }
+  $('btnZoomIn').addEventListener('click', function () { zoom(0.8); });
+  $('btnZoomOut').addEventListener('click', function () { zoom(1.25); });
+
+  // Glisser le fond du plan pour le déplacer ; un simple clic sur le fond désélectionne
+  var pan = null;
+  svg.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0 || (e.target.closest && e.target.closest('.dev, .cable'))) return;
+    pan = { sx: e.clientX, sy: e.clientY, x: VB.x, y: VB.y, moved: false };
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', function (e) {
+    if (!pan) return;
+    var s = svg.getScreenCTM().a;
+    var ddx = e.clientX - pan.sx, ddy = e.clientY - pan.sy;
+    if (Math.abs(ddx) + Math.abs(ddy) > 3) pan.moved = true;
+    VB.x = pan.x - ddx / s; VB.y = pan.y - ddy / s;
+    applyVB();
+  });
+  function endPan() {
+    if (!pan) return;
+    var moved = pan.moved; pan = null;
+    if (!moved && mode === 'select' && selected) {
+      selected = null; setStatus('Cliquez un appareil pour le configurer.'); refresh();
+    }
+  }
+  svg.addEventListener('pointerup', endPan);
+  svg.addEventListener('pointercancel', function () { pan = null; });
+
+  // Clavier : Suppr / Retour arrière supprime l'appareil ciblé, Échap annule un câblage en cours
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+    if (e.key === 'Escape' && pending) { pending = null; setStatus('Câblage annulé.'); refresh(); return; }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      var id = (t && t.getAttribute && t.getAttribute('data-id')) || selected;
+      if (id && N(id)) { e.preventDefault(); removeNode(id); }
+    }
+  });
+
+  // Tiroir du terminal
+  $('btnTerm').addEventListener('click', function () {
+    var btn = $('btnTerm');
+    var open = document.body.classList.toggle('term-open');
+    btn.setAttribute('aria-pressed', open ? 'true' : 'false');
+    if (open) cmdInput.focus();
+  });
+
+  // Icônes de la palette, dessinées avec les mêmes formes que le plan
+  document.querySelectorAll('.palette [data-add]').forEach(function (b) {
+    drawIcon(b.querySelector('svg.ic'), { kind: b.getAttribute('data-add') });
+  });
+
   /* ----- Glisser-déposer depuis la palette ----- */
   var wrap = svg.parentNode;
   document.querySelectorAll('[data-add]').forEach(function (b) {

@@ -8,101 +8,114 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
-<link rel="stylesheet" href="../../assets/style.css">
 <link rel="stylesheet" href="simulateur.css">
 </head>
-<body>
-<a class="skip" href="#contenu">Aller au contenu</a>
-<header class="site-head"><div class="wrap">
-  <a class="brand" href="../../index.html">
-    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L42 14 V34 L24 44 L6 34 V14 Z" fill="#dbeafe" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/><path d="M6 14 L24 24 L42 14 M24 24 V44" fill="none" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/></svg>
-    <span class="brand-text"><strong>Techno &amp; SNT Lab</strong><span>Comprendre. Expérimenter. Créer.</span></span>
-  </a>
-  <nav class="site-nav" aria-label="Principal">
-    <a href="../../index.html">Accueil</a>
-    <a href="../" aria-current="page">Outils</a>
-  </nav>
-</div></header>
+<body class="app">
 
-<main id="contenu" class="tool"><div class="wrap">
-  <p class="crumbs"><a href="../">Outils</a> / Simulateur réseau</p>
-  <h1>Simulateur réseau</h1>
-  <p class="lead">Place les appareils, branche-les, configure-les, puis teste avec le terminal. Commence par le scénario de la séance.</p>
+<div class="notice" role="note">
+  <p>Ce simulateur s'utilise sur un ordinateur, avec un écran d'au moins 800 px de large.</p>
+</div>
 
-  <div class="tool-grid">
-    <section class="panel palette" aria-labelledby="pal-t">
-      <h2 id="pal-t">Ajouter</h2>
-      <div class="btns">
-        <button type="button" data-add="pc" draggable="true">Ordinateur</button>
-        <button type="button" data-add="notebook" draggable="true">Portable</button>
-        <button type="button" data-add="switch" draggable="true">Switch</button>
-        <button type="button" data-add="router" draggable="true">Routeur</button>
-        <button type="button" data-add="web" draggable="true">Serveur web</button>
-        <button type="button" data-add="dns" draggable="true">Serveur DNS</button>
-      </div>
-      <p class="help">Glissez un appareil sur le plan, ou cliquez dessus pour l'ajouter.</p>
-      <h2>Fichier</h2>
-      <div class="btns">
-        <button type="button" id="btnScenario">Scénario de la séance</button>
-        <button type="button" id="btnNew">Vider le plan</button>
-        <button type="button" id="btnExport">Exporter le plan</button>
-        <label class="btn-file">Importer un plan <input type="file" id="fileImport" accept="application/json,.json"></label>
-      </div>
-    </section>
+<div class="app-shell">
 
-    <section class="panel work" aria-label="Plan du réseau">
-      <div class="toolbar" role="group" aria-label="Mode d'action">
-        <button type="button" data-mode="select" aria-pressed="true">Déplacer / configurer</button>
-        <button type="button" data-mode="cable" aria-pressed="false">Câbler</button>
-        <button type="button" data-mode="delete" aria-pressed="false">Supprimer</button>
-      </div>
-      <p id="status" class="status-line" role="status" aria-live="polite"></p>
-      <div class="canvas-wrap">
-        <svg id="canvas" viewBox="0 0 1000 520" role="application" aria-label="Plan du réseau">
-          <defs>
-            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-              <circle cx="1.5" cy="1.5" r="1.2" class="grid-dot"/>
-            </pattern>
-            <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#ffffff"/>
-              <stop offset="1" stop-color="#e9eef7"/>
-            </linearGradient>
-            <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
-              <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f1b3d" flood-opacity=".22"/>
-            </filter>
-          </defs>
-          <rect width="1000" height="520" fill="url(#grid)" class="bg"/>
-          <g id="layerLinks"></g>
-          <g id="layerNodes"></g>
-          <g id="layerPk"></g>
-        </svg>
-      </div>
-    </section>
+  <header class="toolbar" aria-label="Barre d'outils">
+    <a class="tb" href="../" title="Retour aux outils" aria-label="Retour aux outils">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="tb" id="btnNew" type="button" title="Nouveau plan" aria-label="Nouveau plan">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z M14 3v4h4"/></svg>
+    </button>
+    <label class="tb" title="Ouvrir un plan" aria-label="Ouvrir un plan">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z M3 11h18"/></svg>
+      <input type="file" id="fileImport" accept=".json,application/json">
+    </label>
+    <button class="tb" id="btnExport" type="button" title="Enregistrer le plan" aria-label="Enregistrer le plan">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z M8 3v5h7V3 M8 21v-7h8v7"/></svg>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="tb" id="btnScenario" type="button" title="Charger le scénario de la séance" aria-label="Charger le scénario de la séance">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4 M5 4h12l-2 4 2 4H5"/></svg>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="tb" type="button" data-mode="select" aria-pressed="true" title="Déplacer et configurer" aria-label="Déplacer et configurer">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 2-2 6z"/></svg>
+    </button>
+    <button class="tb" type="button" data-mode="cable" aria-pressed="false" title="Câbler deux appareils" aria-label="Câbler deux appareils">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2v5 M15 2v5 M7 7h10v4a5 5 0 0 1-10 0z M12 16v6"/></svg>
+    </button>
+    <button class="tb" type="button" data-mode="delete" aria-pressed="false" title="Supprimer un appareil ou un câble" aria-label="Supprimer un appareil ou un câble">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16 M9 7V4h6v3 M6 7l1 14h10l1-14"/></svg>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="tb" id="btnZoomOut" type="button" title="Zoom arrière" aria-label="Zoom arrière">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5 M8 11h6"/></svg>
+    </button>
+    <button class="tb" id="btnZoomIn" type="button" title="Zoom avant" aria-label="Zoom avant">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5 M8 11h6 M11 8v6"/></svg>
+    </button>
+    <span class="spacer" aria-hidden="true"></span>
+    <button class="tb" id="btnTerm" type="button" aria-pressed="false" title="Afficher ou masquer le terminal" aria-label="Afficher ou masquer le terminal">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3z M7 9l3 3-3 3 M12 15h5"/></svg>
+    </button>
+  </header>
 
-    <section class="panel props" aria-labelledby="prop-t">
-      <h2 id="prop-t">Configuration</h2>
-      <div id="props"></div>
-    </section>
-  </div>
+  <aside class="palette" aria-label="Appareils à ajouter">
+    <button type="button" data-add="pc" draggable="true" title="Ordinateur" aria-label="Ordinateur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+    <button type="button" data-add="notebook" draggable="true" title="Portable" aria-label="Portable"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+    <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+    <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+    <button type="button" data-add="web" draggable="true" title="Serveur web" aria-label="Serveur web"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+    <button type="button" data-add="dns" draggable="true" title="Serveur DNS" aria-label="Serveur DNS"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+  </aside>
 
-  <section class="panel term" aria-labelledby="term-t">
-    <h2 id="term-t">Terminal</h2>
-    <div class="term-top">
-      <label for="termHost">Machine</label>
-      <select id="termHost"></select>
+  <main class="stage">
+    <div class="canvas-wrap" id="canvasWrap">
+      <svg id="canvas" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Plan du réseau">
+        <defs>
+          <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+            <circle cx="1.5" cy="1.5" r="1.2" class="grid-dot"/>
+          </pattern>
+          <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="1" stop-color="#e9eef7"/>
+          </linearGradient>
+          <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+            <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f1b3d" flood-opacity=".22"/>
+          </filter>
+        </defs>
+        <rect x="-3000" y="-3000" width="7000" height="7000" fill="url(#grid)" class="bg"/>
+        <g id="layerLinks"></g>
+        <g id="layerNodes"></g>
+        <g id="layerPk"></g>
+      </svg>
     </div>
-    <pre id="termOut" tabindex="0" aria-label="Sortie du terminal"></pre>
-    <form id="termForm" class="term-form">
-      <label for="cmd">Commande</label>
-      <input id="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="ping 192.168.0.10">
-      <button type="submit">Lancer</button>
-    </form>
-  </section>
 
-  <p class="note">Le simulateur fonctionne hors ligne une fois chargé. Les réseaux sont des /24 (masque 255.255.255.0), comme dans l'activité.</p>
-</div></main>
+    <section class="term" id="term" aria-label="Terminal">
+      <div class="term-top">
+        <label for="termHost">Machine</label>
+        <select id="termHost"></select>
+      </div>
+      <pre id="termOut" tabindex="0" aria-label="Sortie du terminal"></pre>
+      <form id="termForm" class="term-form">
+        <label for="cmd">Commande</label>
+        <input id="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="ping 192.168.0.10">
+        <button type="submit">Lancer</button>
+      </form>
+    </section>
+  </main>
 
-<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab · sans publicité, sans compte</p></div></footer>
+  <aside class="props" aria-label="Configuration de l'appareil sélectionné">
+    <h2>Configuration</h2>
+    <div id="props"></div>
+  </aside>
+
+  <footer class="statusbar">
+    <p id="status" role="status" aria-live="polite"></p>
+  </footer>
+
+</div>
+
 <script src="simulateur.js"></script>
 </body>
 </html>
