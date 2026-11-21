@@ -256,9 +256,15 @@
     } else if (k === 'router') {
       el('circle', { cx: 0, cy: 0, r: 26, class: 'body' }, g);
       el('path', { d: 'M-14 -5 H12 M6 -11 L12 -5 L6 1 M14 5 H-12 M-6 -1 L-12 5 L-6 11', class: 'arrows' }, g);
+    } else if (k === 'web') {
+      el('circle', { cx: 0, cy: 0, r: 26, class: 'body' }, g);
+      el('ellipse', { cx: 0, cy: 0, rx: 11, ry: 26, class: 'lines' }, g);
+      el('line', { x1: -26, y1: 0, x2: 26, y2: 0, class: 'lines' }, g);
     } else {
-      el('rect', { x: -22, y: -28, width: 44, height: 56, rx: 4, class: 'body' }, g);
-      [-14, -2, 10].forEach(function (y) { el('line', { x1: -14, y1: y, x2: 14, y2: y, class: 'lines' }, g); });
+      [-18, -3, 12].forEach(function (y) {
+        el('rect', { x: -24, y: y, width: 48, height: 15, rx: 4, class: 'body' }, g);
+        el('circle', { cx: 16, cy: y + 7.5, r: 2.2, class: 'dot' }, g);
+      });
     }
   }
 
@@ -277,15 +283,19 @@
   function drawNodes() {
     layerNodes.textContent = '';
     NODES.forEach(function (n) {
-      var cls = 'dev' + (selected === n.id ? ' sel' : '') + (pending === n.id ? ' pend' : '');
+      var cls = 'dev k-' + n.kind + (selected === n.id ? ' sel' : '') + (pending === n.id ? ' pend' : '');
       var g = el('g', { class: cls, transform: 'translate(' + n.x + ',' + n.y + ')', tabindex: '0', role: 'button', 'data-id': n.id, 'aria-label': n.label + ', ' + ipText(n) }, layerNodes);
       el('rect', { x: -80, y: -56, width: 160, height: 150, class: 'hit' }, g);
       var art = el('g', { filter: 'url(#shadow)', transform: 'scale(1.6)' }, g);
       drawIcon(art, n);
       var connected = LINKS.some(function (l) { return l.a.n === n.id || l.b.n === n.id; });
       el('circle', { cx: 44, cy: -44, r: 6, class: connected ? 'led on' : 'led' }, g);
-      var t1 = el('text', { x: 0, y: 66, class: 'nlab' }, g); t1.textContent = n.label;
-      var t2 = el('text', { x: 0, y: 86, class: 'nip' }, g); t2.textContent = ipText(n);
+      var lab = el('g', {}, g);
+      var t1 = el('text', { x: 0, y: 66, class: 'nlab' }, lab); t1.textContent = n.label;
+      var t2 = el('text', { x: 0, y: 86, class: 'nip' }, lab); t2.textContent = ipText(n);
+      var bb = lab.getBBox();
+      var pill = el('rect', { x: bb.x - 8, y: bb.y - 3, width: bb.width + 16, height: bb.height + 6, rx: 9, class: 'lab-bg' });
+      lab.insertBefore(pill, t1);
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
@@ -485,7 +495,13 @@
   }
   function renderTermOut() {
     var lines = OUT[termHost.value] || [];
-    termOut.textContent = lines.join('\n');
+    if (lines.length) {
+      termOut.classList.remove('hint');
+      termOut.textContent = lines.join('\n');
+    } else {
+      termOut.classList.add('hint');
+      termOut.textContent = 'Tapez « aide » pour la liste des commandes.';
+    }
     termOut.scrollTop = termOut.scrollHeight;
   }
   function banner(h) {
@@ -695,7 +711,10 @@
 
   // Icônes de la palette, dessinées avec les mêmes formes que le plan
   document.querySelectorAll('.palette [data-add]').forEach(function (b) {
-    drawIcon(b.querySelector('svg.ic'), { kind: b.getAttribute('data-add') });
+    var kind = b.getAttribute('data-add');
+    var svgIc = b.querySelector('svg.ic');
+    svgIc.setAttribute('class', 'ic k-' + kind);
+    drawIcon(svgIc, { kind: kind });
   });
 
   /* ----- Glisser-déposer depuis la palette ----- */
