@@ -453,7 +453,6 @@
     if (linkAt(t.n, t.i)) { setStatus('Ce port est déjà branché. Choisissez-en un autre.'); return; }
     var dev = N(visId);
     var p = portSpots(dev)[idx];
-    pending = null;
     var line = el('line', { x1: dev.x + p.x, y1: dev.y + p.y, x2: dev.x + p.x, y2: dev.y + p.y, class: 'cable-tmp' }, layerPk);
     cableDrag = { vis: visId, idx: idx, line: line };
     setStatus('Relâchez le clic sur un port de l\'autre appareil.');
