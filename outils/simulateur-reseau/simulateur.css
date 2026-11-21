@@ -5,7 +5,14 @@
 }
 .tool-grid > * { min-width: 0; }
 @media (min-width: 980px) {
-  .tool-grid { grid-template-columns: 190px minmax(0, 1fr) 270px; align-items: start; }
+  .tool-grid {
+    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-areas: "pal work" "pal props";
+    align-items: start;
+  }
+  .tool-grid .palette { grid-area: pal; }
+  .tool-grid .work { grid-area: work; }
+  .tool-grid .props { grid-area: props; }
 }
 
 .panel {
@@ -45,13 +52,13 @@
 .dev .lines { stroke: var(--ink); stroke-width: 2; }
 .dev .dot { fill: var(--ink); }
 .dev .arrows { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.dev .nlab { fill: var(--ink); font-family: var(--sans); font-size: 14px; font-weight: 700; text-anchor: middle; }
-.dev .nip { fill: var(--muted); font-family: var(--mono); font-size: 12px; text-anchor: middle; }
+.dev .nlab { fill: var(--ink); font-family: var(--sans); font-size: 19px; font-weight: 700; text-anchor: middle; }
+.dev .nip { fill: var(--muted); font-family: var(--mono); font-size: 16px; text-anchor: middle; }
 .dev:focus-visible { outline: none; }
 .dev:focus-visible .hit { stroke: var(--focus); stroke-width: 3; stroke-dasharray: 6 4; fill: none; }
 .dev.sel .body { stroke: var(--blue); stroke-width: 3; }
 .dev.pend .body { stroke: var(--purple); stroke-width: 3; }
-.empty { fill: var(--muted); font-family: var(--sans); font-size: 16px; }
+.empty { fill: var(--muted); font-family: var(--sans); font-size: 20px; }
 
 .packet.req { fill: var(--blue); }
 .packet.rep { fill: #0f6b4b; }
@@ -100,3 +107,21 @@
 .iface-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .iface-bar button { font: inherit; font-size: .9rem; font-weight: 700; background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
 .iface-bar button:disabled { opacity: .5; cursor: default; }
+
+/* Habillage du plan */
+.canvas-wrap { background: #fbfcfe; transition: border-color .15s ease, background-color .15s ease; }
+.canvas-wrap.drop { border: 2px dashed var(--blue); background: #eef5ff; }
+.grid-dot { fill: #c9d2e3; }
+.bg { pointer-events: none; }
+.dev .body { fill: url(#gradBody); }
+.dev .led { fill: #c2cad8; stroke: #fff; stroke-width: 1.5; }
+.dev .led.on { fill: #22a06b; }
+.cable { stroke: #5b6478; stroke-width: 4; stroke-linecap: round; }
+.dev .hit { cursor: inherit; }
+.dev:hover .body { stroke: var(--blue); }
+.btns [draggable="true"] { cursor: grab; }
+.btns [draggable="true"]:active { cursor: grabbing; }
+.palette .help { margin: 0 0 14px; }
+
+/* Libellés lisibles au-dessus des câbles */
+.dev .nlab, .dev .nip { paint-order: stroke; stroke: #fbfcfe; stroke-width: 6px; stroke-linejoin: round; }

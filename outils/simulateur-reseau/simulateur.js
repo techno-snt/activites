@@ -279,10 +279,13 @@
     NODES.forEach(function (n) {
       var cls = 'dev' + (selected === n.id ? ' sel' : '') + (pending === n.id ? ' pend' : '');
       var g = el('g', { class: cls, transform: 'translate(' + n.x + ',' + n.y + ')', tabindex: '0', role: 'button', 'data-id': n.id, 'aria-label': n.label + ', ' + ipText(n) }, layerNodes);
-      el('rect', { x: -70, y: -45, width: 140, height: 100, class: 'hit' }, g);
-      drawIcon(g, n);
-      var t1 = el('text', { x: 0, y: 48, class: 'nlab' }, g); t1.textContent = n.label;
-      var t2 = el('text', { x: 0, y: 66, class: 'nip' }, g); t2.textContent = ipText(n);
+      el('rect', { x: -80, y: -56, width: 160, height: 150, class: 'hit' }, g);
+      var art = el('g', { filter: 'url(#shadow)', transform: 'scale(1.6)' }, g);
+      drawIcon(art, n);
+      var connected = LINKS.some(function (l) { return l.a.n === n.id || l.b.n === n.id; });
+      el('circle', { cx: 44, cy: -44, r: 6, class: connected ? 'led on' : 'led' }, g);
+      var t1 = el('text', { x: 0, y: 66, class: 'nlab' }, g); t1.textContent = n.label;
+      var t2 = el('text', { x: 0, y: 86, class: 'nip' }, g); t2.textContent = ipText(n);
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
@@ -322,7 +325,7 @@
     if (!drag || drag.g !== g) return;
     var p = toSvg(e);
     if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 3) drag.moved = true;
-    drag.n.x = clamp(p.x - drag.dx, 60, 840);
+    drag.n.x = clamp(p.x - drag.dx, 60, 940);
     drag.n.y = clamp(p.y - drag.dy, 50, 470);
     g.setAttribute('transform', 'translate(' + drag.n.x + ',' + drag.n.y + ')');
     drawLinks();
@@ -589,14 +592,14 @@
   /* ----- Scénario, vider, export, import ----- */
   function loadScenario() {
     NODES = [
-      { id: 'PC', kind: 'pc', type: 'pc', label: 'Ordinateur', ifaces: [{ ip: '' }], gw: '', dns: '', x: 110, y: 110 },
-      { id: 'NB', kind: 'notebook', type: 'notebook', label: 'Portable', ifaces: [{ ip: '' }], gw: '192.168.0.254', dns: '', x: 110, y: 300 },
+      { id: 'PC', kind: 'pc', type: 'pc', label: 'Ordinateur', ifaces: [{ ip: '' }], gw: '', dns: '', x: 100, y: 110 },
+      { id: 'NB', kind: 'notebook', type: 'notebook', label: 'Portable', ifaces: [{ ip: '' }], gw: '192.168.0.254', dns: '', x: 100, y: 300 },
       { id: 'SW1', kind: 'switch', type: 'switch', label: 'Switch', x: 250, y: 205 },
-      { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 390, y: 205 },
-      { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch opérateur', x: 530, y: 205 },
-      { id: 'OP', kind: 'router', type: 'router', label: 'Routeur opérateur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 670, y: 205 },
-      { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 530, y: 80 },
-      { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, x: 800, y: 205 }
+      { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 400, y: 205 },
+      { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch opérateur', x: 570, y: 205 },
+      { id: 'OP', kind: 'router', type: 'router', label: 'Routeur opérateur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
+      { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
+      { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, x: 910, y: 205 }
     ];
     LINKS = []; portSeq = 1000; OUT = {}; selected = null; pending = null;
     var L = function (a, b) { addLink({ n: a, i: 0 }, { n: b, i: 0 }); };
@@ -633,9 +636,30 @@
     reader.readAsText(file);
   }
 
-  /* ----- Câblage des boutons ----- */
+  /* ----- Glisser-déposer depuis la palette ----- */
+  var wrap = svg.parentNode;
   document.querySelectorAll('[data-add]').forEach(function (b) {
+    b.addEventListener('dragstart', function (e) {
+      e.dataTransfer.setData('text/plain', b.getAttribute('data-add'));
+      e.dataTransfer.effectAllowed = 'copy';
+    });
     b.addEventListener('click', function () { addNode(b.getAttribute('data-add')); });
+  });
+  svg.addEventListener('dragover', function (e) {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    wrap.classList.add('drop');
+  });
+  svg.addEventListener('dragleave', function () { wrap.classList.remove('drop'); });
+  svg.addEventListener('drop', function (e) {
+    e.preventDefault(); wrap.classList.remove('drop');
+    var kind = e.dataTransfer.getData('text/plain');
+    if (!KINDS[kind]) return;
+    var p = toSvg(e);
+    var n = makeNode(kind, clamp(p.x, 60, 940), clamp(p.y, 50, 470));
+    NODES.push(n);
+    selected = n.id;
+    setStatus(n.label + ' posé sur le plan. Configurez-le à droite.');
+    refresh();
   });
   document.querySelectorAll('[data-mode]').forEach(function (b) {
     b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });

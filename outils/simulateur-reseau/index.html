@@ -33,13 +33,14 @@
     <section class="panel palette" aria-labelledby="pal-t">
       <h2 id="pal-t">Ajouter</h2>
       <div class="btns">
-        <button type="button" data-add="pc">Ordinateur</button>
-        <button type="button" data-add="notebook">Portable</button>
-        <button type="button" data-add="switch">Switch</button>
-        <button type="button" data-add="router">Routeur</button>
-        <button type="button" data-add="web">Serveur web</button>
-        <button type="button" data-add="dns">Serveur DNS</button>
+        <button type="button" data-add="pc" draggable="true">Ordinateur</button>
+        <button type="button" data-add="notebook" draggable="true">Portable</button>
+        <button type="button" data-add="switch" draggable="true">Switch</button>
+        <button type="button" data-add="router" draggable="true">Routeur</button>
+        <button type="button" data-add="web" draggable="true">Serveur web</button>
+        <button type="button" data-add="dns" draggable="true">Serveur DNS</button>
       </div>
+      <p class="help">Glissez un appareil sur le plan, ou cliquez dessus pour l'ajouter.</p>
       <h2>Fichier</h2>
       <div class="btns">
         <button type="button" id="btnScenario">Scénario de la séance</button>
@@ -57,7 +58,20 @@
       </div>
       <p id="status" class="status-line" role="status" aria-live="polite"></p>
       <div class="canvas-wrap">
-        <svg id="canvas" viewBox="0 0 900 520" role="application" aria-label="Plan du réseau">
+        <svg id="canvas" viewBox="0 0 1000 520" role="application" aria-label="Plan du réseau">
+          <defs>
+            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <circle cx="1.5" cy="1.5" r="1.2" class="grid-dot"/>
+            </pattern>
+            <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffffff"/>
+              <stop offset="1" stop-color="#e9eef7"/>
+            </linearGradient>
+            <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f1b3d" flood-opacity=".22"/>
+            </filter>
+          </defs>
+          <rect width="1000" height="520" fill="url(#grid)" class="bg"/>
           <g id="layerLinks"></g>
           <g id="layerNodes"></g>
           <g id="layerPk"></g>
