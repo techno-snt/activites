@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulateur de réseau · Techno &amp; SNT Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="filius.css">
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header class="site-head"><div class="wrap">
+  <a class="brand" href="../../index.html">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L42 14 V34 L24 44 L6 34 V14 Z" fill="#dbeafe" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/><path d="M6 14 L24 24 L42 14 M24 24 V44" fill="none" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <span class="brand-text"><strong>Techno &amp; SNT Lab</strong><span>Comprendre. Expérimenter. Créer.</span></span>
+  </a>
+  <nav class="site-nav" aria-label="Principal">
+    <a href="../../index.html">Accueil</a>
+    <a href="../" aria-current="page">Outils</a>
+  </nav>
+</div></header>
+
+<main id="contenu" class="tool"><div class="wrap">
+  <p class="crumbs"><a href="../">Outils</a> / Simulateur de réseau</p>
+  <h1>Simulateur de réseau</h1>
+  <p class="lead">Un clone de Filius : place les appareils, branche-les, configure-les, puis teste avec le terminal. Commence par le scénario de la séance.</p>
+
+  <div class="tool-grid">
+    <section class="panel palette" aria-labelledby="pal-t">
+      <h2 id="pal-t">Ajouter</h2>
+      <div class="btns">
+        <button type="button" data-add="pc">Ordinateur</button>
+        <button type="button" data-add="notebook">Portable</button>
+        <button type="button" data-add="switch">Switch</button>
+        <button type="button" data-add="router">Routeur</button>
+        <button type="button" data-add="web">Serveur web</button>
+        <button type="button" data-add="dns">Serveur DNS</button>
+      </div>
+      <h2>Fichier</h2>
+      <div class="btns">
+        <button type="button" id="btnScenario">Scénario de la séance</button>
+        <button type="button" id="btnNew">Vider le plan</button>
+        <button type="button" id="btnExport">Exporter le plan</button>
+        <label class="btn-file">Importer un plan <input type="file" id="fileImport" accept="application/json,.json"></label>
+      </div>
+    </section>
+
+    <section class="panel work" aria-label="Plan du réseau">
+      <div class="toolbar" role="group" aria-label="Mode d'action">
+        <button type="button" data-mode="select" aria-pressed="true">Déplacer / configurer</button>
+        <button type="button" data-mode="cable" aria-pressed="false">Câbler</button>
+        <button type="button" data-mode="delete" aria-pressed="false">Supprimer</button>
+      </div>
+      <p id="status" class="status-line" role="status" aria-live="polite"></p>
+      <div class="canvas-wrap">
+        <svg id="canvas" viewBox="0 0 900 520" role="application" aria-label="Plan du réseau">
+          <g id="layerLinks"></g>
+          <g id="layerNodes"></g>
+          <g id="layerPk"></g>
+        </svg>
+      </div>
+    </section>
+
+    <section class="panel props" aria-labelledby="prop-t">
+      <h2 id="prop-t">Configuration</h2>
+      <div id="props"></div>
+    </section>
+  </div>
+
+  <section class="panel term" aria-labelledby="term-t">
+    <h2 id="term-t">Terminal</h2>
+    <div class="term-top">
+      <label for="termHost">Machine</label>
+      <select id="termHost"></select>
+    </div>
+    <pre id="termOut" tabindex="0" aria-label="Sortie du terminal"></pre>
+    <form id="termForm" class="term-form">
+      <label for="cmd">Commande</label>
+      <input id="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="ping 192.168.0.10">
+      <button type="submit">Lancer</button>
+    </form>
+  </section>
+
+  <p class="note">Le simulateur fonctionne hors ligne une fois chargé. Les réseaux sont des /24 (masque 255.255.255.0), comme dans l'activité.</p>
+</div></main>
+
+<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab · sans publicité, sans compte</p></div></footer>
+<script src="filius.js"></script>
+</body>
+</html>
