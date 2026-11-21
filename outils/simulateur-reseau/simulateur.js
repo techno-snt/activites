@@ -350,17 +350,22 @@
           if (!t) return;
           var linked = !!linkAt(t.n, t.i);
           var isPend = pending && pending.vis === n.id && pending.idx === idx;
-          var pg = el('g', { class: 'port' + (linked ? ' on' : '') + (isPend ? ' pend' : ''), transform: 'translate(' + s.x + ',' + s.y + ')' }, g);
+          var pg = el('g', { class: 'port' + (linked ? ' on' : '') + (isPend ? ' pend' : ''), transform: 'translate(' + s.x + ',' + s.y + ')', 'data-vis': n.id, 'data-idx': idx }, g);
           el('circle', { r: 7 }, pg);
           if (s.t) { var tx = el('text', {}, pg); tx.textContent = s.t; }
-          pg.addEventListener('click', function (e) { e.stopPropagation(); handlePort(n.id, idx); });
+          pg.addEventListener('click', function (e) { e.stopPropagation(); if (!skipClick) handlePort(n.id, idx); });
+          pg.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            e.stopPropagation(); e.preventDefault();
+            startCableDrag(n.id, idx);
+          });
         });
       }
 
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
-      g.addEventListener('click', function () { if (mode !== 'select') clickNode(n); });
+      g.addEventListener('click', function () { if (!skipClick && mode !== 'select') clickNode(n); });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
@@ -439,6 +444,48 @@
     }
     refresh();
   }
+
+  /* ----- Câblage par glisser : on maintient le clic sur un port, puis on relâche sur un autre port ----- */
+  var cableDrag = null, skipClick = false;
+  function startCableDrag(visId, idx) {
+    var t = targetsOf(visId)[idx];
+    if (!t) return;
+    if (linkAt(t.n, t.i)) { setStatus('Ce port est déjà branché. Choisissez-en un autre.'); return; }
+    var dev = N(visId);
+    var p = portSpots(dev)[idx];
+    pending = null;
+    var line = el('line', { x1: dev.x + p.x, y1: dev.y + p.y, x2: dev.x + p.x, y2: dev.y + p.y, class: 'cable-tmp' }, layerPk);
+    cableDrag = { vis: visId, idx: idx, line: line };
+    setStatus('Relâchez le clic sur un port de l\'autre appareil.');
+  }
+  document.addEventListener('pointermove', function (e) {
+    if (!cableDrag) return;
+    var q = toSvg(e);
+    cableDrag.line.setAttribute('x2', q.x);
+    cableDrag.line.setAttribute('y2', q.y);
+  });
+  document.addEventListener('pointerup', function (e) {
+    if (!cableDrag) return;
+    var d = cableDrag;
+    cableDrag = null;
+    d.line.remove();
+    var hit = document.elementFromPoint(e.clientX, e.clientY);
+    var target = null;
+    var pgEl = hit && hit.closest ? hit.closest('.port') : null;
+    if (pgEl) {
+      target = { vis: pgEl.getAttribute('data-vis'), idx: +pgEl.getAttribute('data-idx') };
+    } else {
+      var devEl = hit && hit.closest ? hit.closest('.dev') : null;
+      if (devEl && portSpots(N(devEl.getAttribute('data-id'))).length === 1) target = { vis: devEl.getAttribute('data-id'), idx: 0 };
+    }
+    if (target && target.vis === d.vis && target.idx === d.idx) return; // simple clic : géré par le clic-clic
+    if (!target) { setStatus('Câblage annulé : relâchez le clic sur un port.'); refresh(); return; }
+    var r = addLink(targetsOf(d.vis)[d.idx], targetsOf(target.vis)[target.idx]);
+    setStatus(r.ok ? 'Câble branché.' : r.msg);
+    skipClick = true;
+    setTimeout(function () { skipClick = false; }, 0);
+    refresh();
+  });
 
   function syncModeButtons() {
     document.querySelectorAll('[data-mode]').forEach(function (b) {

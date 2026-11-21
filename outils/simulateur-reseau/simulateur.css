@@ -204,4 +204,5 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .port.on text { fill: #ffffff; }
 .port.pend circle { fill: var(--purple); stroke: var(--purple); }
 .port.pend text { fill: #ffffff; }
+.cable-tmp { stroke: var(--purple); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 8 6; pointer-events: none; }
 .term pre.hint { color: #8d9bb8; }
