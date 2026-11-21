@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation de réseau — étapes guidées</title>
+<style>
+  :root { --fg:#1d2330; --muted:#5b6475; --line:#d7dce5; --bg:#f6f7f9; --ok:#1f7a3d; --ko:#b3261e; --acc:#1f4e8c; --aller:#1f4e8c; --retour:#1f7a3d; --dns:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:#fff; line-height:1.4; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  h1 { font-size:1.05rem; margin:0; }
+  .steps, .hbtn { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { padding:5px 10px; border-radius:999px; border:1px solid #aab2c0; background:#fff; font-size:.85rem; color:var(--fg); }
+  .chip.cur { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .chip.ok::before { content:"✔ "; color:var(--ok); }
+  .chip.cur.ok::before { color:#fff; }
+  button { padding:6px 10px; border:0; border-radius:5px; background:var(--acc); color:#fff; font:inherit; font-size:.9rem; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.sec { background:#e7ebf2; color:var(--fg); }
+  button.on { background:#0d2f5c; color:#fff; }
+  main { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:12px; padding:12px; align-items:start; }
+  .sticky { position:sticky; top:100px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; margin-bottom:12px; }
+  .card h2 { font-size:.95rem; margin:0 0 6px; color:var(--acc); }
+  .slide ol { margin:4px 0 0; padding-left:20px; font-size:.95rem; }
+  svg#labo { width:100%; height:auto; background:#fbfcfd; border:1px solid var(--line); border-radius:6px; touch-action:none; user-select:none; }
+  .nlab { font-size:12px; fill:var(--fg); text-anchor:middle; }
+  .nip { font-size:11px; fill:var(--muted); text-anchor:middle; }
+  .plab { font-size:13px; font-weight:600; text-anchor:middle; paint-order:stroke; stroke:#fff; stroke-width:4px; }
+  .ctrl { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:8px; font-size:.9rem; }
+  .ctrl input[type=range] { width:140px; }
+  .legend { font-size:.82rem; color:var(--muted); margin-top:6px; }
+  .legend b.a { color:var(--aller); } .legend b.r { color:var(--retour); } .legend b.d { color:var(--dns); }
+  .box-info { font-size:.85rem; color:var(--muted); }
+  .tabs { display:flex; gap:6px; margin:8px 0; flex-wrap:wrap; }
+  .fields { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; }
+  label { display:block; font-size:.8rem; color:var(--muted); margin:2px 0; }
+  input[type=text] { width:100%; padding:5px 7px; border:1px solid #aab2c0; border-radius:5px; font:inherit; font-size:.9rem; }
+  input.focus { border:2px solid var(--acc); background:#eef4ff; }
+  input:disabled { background:#eceff4; color:#7a8291; border-color:#cfd5df; }
+  .lockmsg { font-size:.85rem; color:var(--muted); margin-bottom:6px; }
+  .console { background:#0c0c0c; color:#cccccc; font-family:Consolas,"Lucida Console",ui-monospace,monospace; font-size:.85rem; padding:8px 10px; border-radius:4px; height:250px; overflow:auto; white-space:pre-wrap; }
+  .console .ko { color:#e74856; } .console .ok { color:#16c60c; } .console .cmd { color:#f2f2f2; } .console .tr { color:#f9f1a5; } .console .dns { color:#f9a85c; }
+  .pline { display:flex; align-items:baseline; }
+  .pline #termIn { flex:1; background:transparent; border:0; outline:none; color:#f2f2f2; font:inherit; padding:0; margin:0 0 0 2px; min-width:0; }
+  .trace { font-size:.85rem; color:var(--muted); margin-top:6px; min-height:1.2em; }
+  .err { color:var(--ko); font-size:.85rem; min-height:1.2em; }
+  .desk { position:relative; background:#9EDBFF; color:#1d2330; border-radius:6px; padding:12px; height:460px; display:flex; flex-direction:column; overflow:hidden; box-sizing:border-box; }
+  @media (max-width:560px) { .desk { height:560px; } }
+  .desk .offbox { text-align:center; padding:26px 10px; }
+  .icons { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .icons { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .wallpaper { position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+  .desk > div { position:relative; z-index:1; }
+  .icon { background:transparent; border:1px solid transparent; color:#1d2330; font-weight:600; width:104px; padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:.8rem; line-height:1.2; border-radius:4px; text-align:center; }
+  .icon:hover, .icon:focus-visible { background:rgba(255,255,255,.45); border-color:rgba(255,255,255,.8); }
+  .icon .ico svg { width:40px; height:40px; display:block; }
+  .browser { background:#fff; color:#111; border-radius:6px; overflow:hidden; border:1px solid #bbb; }
+  .bbar { display:flex; gap:6px; align-items:center; padding:6px; background:#eef1f5; border-bottom:1px solid #ccd; }
+  .bbar input { flex:1; padding:6px; border:1px solid #aab; border-radius:4px; font:inherit; }
+  .bbar button { background:#e7ebf2; color:#111; }
+  .bpage { padding:12px; min-height:120px; font-size:.95rem; }
+  .bstatus { font-size:.8rem; color:#555; padding:4px 8px; border-top:1px solid #eee; }
+  table.m { width:100%; table-layout:fixed; border-collapse:collapse; font-size:.85rem; margin-top:6px; }
+  table.m th, table.m td { border:1px solid var(--line); padding:5px; text-align:center; vertical-align:middle; }
+  .cb { display:block; width:100%; height:44px; padding:4px 6px; margin:0; border:0; border-radius:6px; font:inherit; font-size:.85rem; line-height:1.2; color:#fff; background:var(--acc); cursor:pointer; white-space:normal; }
+  .cb:disabled { cursor:default; opacity:.55; }
+  .cb.okb { background:var(--ok); } .cb.kob { background:var(--ko); }
+  .cb.okb:disabled, .cb.kob:disabled { opacity:1; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  .msgwrong { color:var(--ko); font-size:.8rem; margin-bottom:4px; }
+  .verdict { margin-top:8px; padding:8px 10px; border-radius:6px; border:2px solid; font-size:.9rem; }
+  .verdict.vok { border-color:var(--ok); color:var(--ok); }
+  .verdict.vko { border-color:var(--ko); color:var(--ko); }
+  .wins { flex:1; min-height:0; display:flex; flex-direction:column; margin-top:8px; }
+  #deskOn { flex:1; min-height:0; flex-direction:column; }
+  #deskOn > .icons, #deskOn > .taskbar { flex:none; }
+  .subwin { background:#f3f5f8; color:var(--fg); border:1px solid #9fb0c4; border-radius:6px; padding:8px; min-width:0; }
+  .swbar { display:flex; justify-content:space-between; align-items:center; background:#dfe6ef; margin:-8px -8px 8px; padding:4px 8px; border-radius:6px 6px 0 0; font-size:.85rem; font-weight:600; }
+  .swbar button { padding:2px 8px; }
+  .subwin .fields { grid-template-columns:1fr 1fr; gap:8px 10px; align-items:start; }
+  .subwin .fields label { min-height:2.8em; }
+  .subwin { overflow:auto; }
+  .subwin { flex:1; flex-direction:column; min-height:0; }
+  .subwin .netname, .subwin .lockmsg, .subwin .err { flex:none; }
+  .swbar { flex:none; }
+  .subwin .console { flex:1; height:auto; min-height:0; }
+  .browser { flex:1; min-height:0; display:flex; flex-direction:column; }
+  .browser .bpage { flex:1; overflow:auto; }
+  .taskbar { align-items:center; }
+  .taskbar > * { flex:none; }
+  .taskbar .tasks { flex:1; min-width:0; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .tbi { width:38px; height:38px; padding:4px; border-radius:6px; background:#2d3f55; border:2px solid transparent; cursor:pointer; }
+  .tbi.on { background:#0d2f5c; border-color:#7fb0ff; }
+  .taskbar .tbi { background:#2d3f55; }
+  .taskbar .tbi.on { background:#0d2f5c; }
+  .tbi svg { width:100%; height:100%; display:block; }
+  body.bilan main { grid-template-columns:1fr; }
+  body.bilan .sticky, body.bilan #win, body.bilan #hint { display:none !important; }
+  body.bilan .card.slide { max-width:none; }
+  body.bilan #stepTitle { font-size:1.4rem !important; }
+  .taskbar { background:rgba(27,42,58,.88) !important; display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px; background:#1b2a3a; padding:6px 8px; border-radius:4px; }
+  .taskbar #clock { color:#fff; font-size:.85rem; }
+  .taskbar button { background:#e7ebf2; color:var(--fg); }
+  .cbar { background:#2b2b2b; color:#eee; font-size:.8rem; padding:4px 10px; border-radius:4px 4px 0 0; }
+  .netname { font-weight:600; font-size:.9rem; margin-bottom:6px; }
+  .recap { list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; font-size:1rem; }
+  .recap li { border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:6px; padding:12px 14px; margin:0; background:#fbfcfe; }
+  .recap li b { display:block; color:var(--acc); margin-bottom:4px; }
+  @media (max-width:560px) { table.m { font-size:.8rem; } table.m th, table.m td { padding:4px; } .cb { height:50px; } }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } .sticky { position:static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulation de réseau — TP Internet</h1>
+  <div class="steps" id="stepBar"></div>
+  <div class="hbtn">
+    <button class="sec" id="bPrev" onclick="go(-1)">◀ Précédent</button>
+    <button id="bNext2" onclick="go(1)">Suivant ▶</button>
+    <button class="sec" onclick="resetStep()">Réinitialiser l'étape</button>
+    <button class="sec" onclick="resetTP()">Tout recommencer</button>
+    <button class="sec" onclick="exportSVG()">Exporter le schéma</button>
+  </div>
+</header>
+
+<main>
+  <!-- Colonne gauche : le schéma reste visible pendant toute l'étape -->
+  <div class="sticky">
+    <div class="card">
+      <h2>Schéma du réseau</h2>
+      <svg id="labo" viewBox="0 0 880 420" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="ctrl">
+        <label style="margin:0">Vitesse des paquets</label>
+        <input id="speed" type="range" min="1" max="100" value="50">
+        <label style="margin:0"><input type="checkbox" id="pas" onchange="pas=this.checked" style="width:auto"> Pas à pas</label>
+        <button id="bGate" class="sec" disabled onclick="releaseGate()">Saut suivant ▶</button>
+      </div>
+      <div class="legend">Trajet <b class="a">bleu</b> = demande. <b class="r">vert</b> = réponse. <b class="d">orange</b> = requête DNS. <b style="color:var(--ko)">✖</b> = le paquet s'arrête ici.</div>
+      <div class="legend">Cliquez sur une machine pour ouvrir sa fenêtre. Vous pouvez glisser les appareils.</div>
+    </div>
+    <div class="card box-info">
+      <b>Déjà configuré, à ne pas modifier :</b><br>
+      Box : 192.168.0.254 côté maison, 192.168.140.100 côté opérateur (route par défaut 192.168.140.254).<br>
+      Routeur de l'opérateur : 192.168.140.254 et 192.168.21.254.<br>
+      Serveur DNS de l'opérateur : 192.168.140.1.<br>
+      Serveur Web : 192.168.21.1 (passerelle 192.168.21.254).<br>
+      Le Portable a déjà sa passerelle (192.168.0.254).
+    </div>
+  </div>
+
+  <!-- Colonne droite : l'étape, puis la fenêtre de la machine sélectionnée -->
+  <div>
+    <div class="card slide">
+      <div id="stepNo" style="font-size:.85rem;color:var(--muted)"></div>
+      <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 4px;color:var(--acc)"></h2>
+      <div id="stepText"></div>
+      <div id="stepExtra"></div>
+    </div>
+
+    <div class="card" id="hint" style="display:none;color:var(--muted)">
+      <b>Pour commencer, cliquez sur un ordinateur ou un portable dans le schéma.</b> Sa fenêtre s'ouvre : le <b>Bureau</b> (pour démarrer la machine et ouvrir le navigateur), la <b>Configuration IP</b> et l'<b>Invite de commandes</b>.
+    </div>
+
+    <div class="card" id="win" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 id="winTitle" style="margin:0"></h2>
+        <button class="sec" onclick="closeWin()">Fermer ✕</button>
+      </div>
+
+      <!-- Bureau : démarrer la machine, ouvrir le navigateur -->
+      <div id="paneDesk" style="display:none">
+        <div class="desk">
+          <svg class="wallpaper" viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="wpBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9EDBFF"/><stop offset="48%" stop-color="#B8C8F4"/><stop offset="100%" stop-color="#D9B7E8"/></linearGradient>
+              <radialGradient id="wpLight" cx="50%" cy="35%" r="70%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+              <filter id="wpBlur"><feGaussianBlur stdDeviation="18"/></filter>
+              <filter id="wpShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#6E72B5" flood-opacity="0.16"/></filter>
+            </defs>
+            <rect width="1080" height="1920" fill="url(#wpBg)"/>
+            <rect width="1080" height="1920" fill="url(#wpLight)"/>
+            <circle cx="820" cy="390" r="300" fill="#FFFFFF" fill-opacity="0.20" filter="url(#wpBlur)"/>
+            <circle cx="820" cy="390" r="245" fill="#F4E9FF" fill-opacity="0.25" filter="url(#wpShadow)"/>
+            <path d="M 120 1010 C 120 790, 300 650, 515 690 C 735 730, 850 920, 790 1115 C 730 1310, 500 1390, 300 1305 C 150 1240, 90 1140, 120 1010 Z" fill="#FFFFFF" fill-opacity="0.20" filter="url(#wpShadow)"/>
+            <path d="M 360 1570 C 420 1390, 650 1330, 825 1435 C 980 1528, 1010 1720, 900 1845 L 260 1920 C 220 1800, 270 1690, 360 1570 Z" fill="#D9A9E8" fill-opacity="0.28" filter="url(#wpBlur)"/>
+            <ellipse cx="330" cy="420" rx="170" ry="95" fill="#FFFFFF" fill-opacity="0.16" transform="rotate(-25 330 420)"/>
+          </svg>
+          <div id="deskOff" class="offbox">
+            <div id="offmsg">L'ordinateur est éteint.</div>
+            <button style="margin-top:10px" id="bPowerOff" onclick="togglePower()">Démarrer</button>
+          </div>
+          <div id="deskOn" style="display:none">
+            <div class="icons">
+              <button class="icon" onclick="openWin('term')"><span class="ico"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="2" fill="#0c0c0c" stroke="#fff" stroke-width="1.5"/><path d="M8 12l4 3-4 3M14 19h8" stroke="#16c60c" stroke-width="2" fill="none"/></svg></span><span>Invite de commandes</span></button>
+              <button class="icon" onclick="openBrowser()"><span class="ico"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="#2b7bd6" stroke="#fff" stroke-width="1.5"/><ellipse cx="16" cy="16" rx="5" ry="12" fill="none" stroke="#dbeafe" stroke-width="1.2"/><path d="M4 16h24M6 10h20M6 22h20" stroke="#dbeafe" stroke-width="1.2"/></svg></span><span>Navigateur</span></button>
+              <button class="icon" onclick="openWin('conf')"><span class="ico"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><rect x="3" y="22" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><rect x="19" y="22" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><path d="M16 10v6M8 22v-6h16v6" stroke="#fff" stroke-width="1.5" fill="none"/></svg></span><span>Configuration IP</span></button>
+            </div>
+            <div class="wins">
+              <div class="subwin" id="subConf" style="display:none">
+                <div class="swbar"><span>Configuration IP</span><button class="sec" onclick="closeSub('conf')">✕</button></div>
+                <div class="netname" id="netname"></div>
+                <div class="lockmsg" id="stepLock"></div>
+                <div class="fields" id="fields"></div>
+                <div class="err" id="cfgErr"></div>
+              </div>
+              <div class="subwin" id="subTerm" style="display:none">
+                <div class="swbar"><span>Invite de commandes</span><button class="sec" onclick="closeSub('term')">✕</button></div>
+                <div class="console" id="termBox" onclick="document.getElementById('termIn').focus()">
+                  <div id="termOut"></div>
+                  <div class="pline" id="pline"><span id="prompt"></span><input id="termIn" type="text" autocomplete="off" spellcheck="false" onkeydown="termKey(event)"></div>
+                </div>
+              </div>
+            <div id="browser" class="browser" style="display:none">
+              <div class="bbar">
+                <input id="urlIn" type="text" placeholder="Tapez une adresse puis Entrée" onkeydown="if(event.key==='Enter')browseGo()">
+                <button onclick="closeBrowser()">✕</button>
+              </div>
+              <div class="bpage" id="bpage"></div>
+              <div class="bstatus" id="bstatus"></div>
+            </div>
+            </div>
+            <div class="taskbar">
+              <button id="bPowerOn" onclick="togglePower()">⏻ Arrêter</button>
+              <span id="tasks" class="tasks"></span>
+              <span id="clock"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+/*CORE*/
+let NODES = [], LINKS = [], portSeq = 1000, pidSeq = 0, nodeSeq = 0;
+const N = id => NODES.find(n => n.id === id);
+const isHost = n => n && (n.type === 'pc' || n.type === 'notebook' || n.type === 'server');
+const ipOK = s => /^\d{1,3}(\.\d{1,3}){3}$/.test(s) && s.split('.').every(x => +x <= 255);
+// Simplification pédagogique : tous les réseaux sont des /24 (masque 255.255.255.0)
+const sameNet = (a, b) => a.split('.').slice(0,3).join('.') === b.split('.').slice(0,3).join('.');
+const epKey = e => e.n + ':' + e.i;
+function linkAt(n, i) { return LINKS.find(l => (l.a.n === n && l.a.i === i) || (l.b.n === n && l.b.i === i)); }
+function otherEnd(l, n, i) { return (l.a.n === n && l.a.i === i) ? l.b : l.a; }
+
+// Membres du même réseau local (segment) : on traverse les switchs (L2), pas les routeurs.
+function segment(n, i) {
+  const parent = {};
+  const find = k => { if (parent[k] === undefined) parent[k] = k; while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; };
+  const uni = (a, b) => { parent[find(a)] = find(b); };
+  for (const l of LINKS) uni(epKey(l.a), epKey(l.b));
+  const bySw = {};
+  for (const l of LINKS) for (const e of [l.a, l.b]) if (N(e.n).type === 'switch') (bySw[e.n] = bySw[e.n] || []).push(epKey(e));
+  for (const s in bySw) bySw[s].forEach(k => uni(k, bySw[s][0]));
+  const root = find(epKey({ n, i }));
+  const seen = new Set(), out = [];
+  for (const l of LINKS) for (const e of [l.a, l.b]) {
+    const k = epKey(e);
+    if (N(e.n).type !== 'switch' && find(k) === root && !seen.has(k)) { seen.add(k); out.push(e); }
+  }
+  return out;
+}
+function addLink(a, b) {
+  const pa = portFor(a), pb = portFor(b);
+  if (!pa || !pb) return { ok:false, msg:'Pas de prise libre sur un des appareils.' };
+  if (a.n === b.n) return { ok:false, msg:'Impossible de relier un appareil à lui-même.' };
+  LINKS.push({ a:{n:a.n, i:pa.i}, b:{n:b.n, i:pb.i} });
+  return { ok:true };
+}
+function portFor(nodeRef) {
+  const n = N(nodeRef.n);
+  if (n.type === 'switch') return { n:n.id, i: portSeq++ };
+  const count = n.type === 'router' ? n.ifaces.length : 1;
+  for (let i = 0; i < count; i++) if (!linkAt(n.id, i)) return { n:n.id, i };
+  return null;
+}
+
+// ---- Routage et livraison d'un paquet ----
+// Retourne {ok,msg,hops,src,dstNode}. hops = appareils traversés (sans les switchs).
+function route(startId, srcIP, dstIP, pid) {
+  let cur = startId, src = srcIP, dst = dstIP;
+  const hops = [startId];
+  for (let step = 0; step < 14; step++) {
+    const node = N(cur);
+    if (node.ifaces.some(f => f.ip === dst)) {
+      if (node.type === 'router' && node.nat && node.nat[pid]) { dst = node.nat[pid]; }   // retour NAT
+      else return { ok:true, hops, src, dstNode:cur };
+    }
+    // Livraison directe sur un réseau connecté
+    let local = false;
+    for (let i = 0; i < node.ifaces.length; i++) {
+      const f = node.ifaces[i];
+      if (!f.ip || !linkAt(cur, i) || !sameNet(f.ip, dst)) continue;
+      local = true;
+      const m = segment(cur, i).find(e => e.n !== cur && N(e.n).ifaces && N(e.n).ifaces[e.i] && N(e.n).ifaces[e.i].ip === dst);
+      if (!m) return { ok:false, msg:`Délai d'attente dépassé : aucune machine ne répond à ${dst} sur son réseau.`, hops };
+      // Un routeur qui fait sortir un paquet par son interface WAN applique le NAT, même si la destination est sur ce réseau
+      if (node.type === 'router' && f.wan && !(node.ifaces.some(g => g.ip === dst))) {
+        const inside = node.ifaces.some((g, j) => j !== i && g.ip && sameNet(g.ip, src));
+        if (inside) { node.nat = node.nat || {}; node.nat[pid] = src; src = f.ip; }
+      }
+      hops.push(m.n); cur = m.n; break;
+    }
+    if (local) continue;
+    if (node.type !== 'router') {
+      if (!node.gw) return { ok:false, msg:`${dst} est hors de mon réseau et aucune passerelle n'est configurée : le paquet ne peut pas sortir.`, hops };
+      if (!linkAt(cur, 0)) return { ok:false, msg:'Câble non branché.', hops };
+      const g = segment(cur, 0).find(e => N(e.n).ifaces && N(e.n).ifaces[e.i] && N(e.n).ifaces[e.i].ip === node.gw);
+      if (!g) return { ok:false, msg:`La passerelle ${node.gw} ne répond pas : aucun routeur de mon réseau porte cette adresse.`, hops };
+      hops.push(g.n); cur = g.n; continue;
+    }
+    // Routeur : route par défaut
+    if (!node.defGw) return { ok:false, msg:`${node.label} ne sait pas où envoyer ce paquet (pas de route par défaut).`, hops };
+    let out = -1, nh = null;
+    for (let i = 0; i < node.ifaces.length && !nh; i++) {
+      if (!linkAt(cur, i)) continue;
+      const m = segment(cur, i).find(e => N(e.n).ifaces && N(e.n).ifaces[e.i] && N(e.n).ifaces[e.i].ip === node.defGw);
+      if (m) { out = i; nh = m; }
+    }
+    if (!nh) return { ok:false, msg:`La passerelle ${node.defGw} du routeur ${node.label} est injoignable.`, hops };
+    if (node.ifaces[out].wan) {   // NAT : l'adresse source devient celle de la box
+      const inside = node.ifaces.some((f, j) => j !== out && f.ip && sameNet(f.ip, src));
+      if (inside) { node.nat = node.nat || {}; node.nat[pid] = src; src = node.ifaces[out].ip; }
+    }
+    hops.push(nh.n); cur = nh.n;
+  }
+  return { ok:false, msg:'Trop de sauts : boucle de routage.', hops };
+}
+
+function pingCore(srcId, dstIP) {
+  const src = N(srcId);
+  const srcIP = src.ifaces[0].ip;
+  const pid = ++pidSeq;
+  if (!srcIP) return { ok:false, msg:`${src.label} : pas d'adresse IP configurée.`, legs:[] };
+  const r1 = route(srcId, srcIP, dstIP, pid);
+  const legs = [r1.hops];
+  if (!r1.ok) return { ok:false, msg:r1.msg, legs };
+  const r2 = route(r1.dstNode, dstIP, r1.src, pid);
+  legs.push(r2.hops);
+  if (!r2.ok) return { ok:false, msg:`La requête arrive, mais la réponse ne revient pas : ${r2.msg}`, legs };
+  return { ok:true, msg:`Réponse de ${dstIP}`, legs, dstNode:r1.dstNode };
+}
+// Résolution d'un nom via le serveur DNS configuré sur la machine
+function resolveCore(hostId, name) {
+  const h = N(hostId);
+  if (ipOK(name)) return { ok:true, ip:name, legs:[] };
+  if (!h.dns) return { ok:false, msg:`Nom « ${name} » inconnu : aucun serveur DNS configuré sur ${h.label}.`, legs:[] };
+  const dnsNode = NODES.find(n => n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc);
+  if (!dnsNode) return { ok:false, msg:`Serveur DNS ${h.dns} introuvable.`, legs:[] };
+  const q = pingCore(hostId, h.dns);
+  if (!q.ok) return { ok:false, msg:`Serveur DNS injoignable. ${q.msg}`, legs:q.legs };
+  if (!dnsNode.records || !(name in dnsNode.records)) return { ok:false, msg:`Le serveur DNS ne connaît pas « ${name} ».`, legs:q.legs };
+  return { ok:true, ip:dnsNode.records[name], legs:q.legs, name };
+}
+/*END CORE*/
+
+// ---------- Données du TP ----------
+const SITE = 'www.monsite-snt.fr';   // nom fictif du site de la classe
+const SITE_IP = '192.168.21.1';
+const DNS_IP = '192.168.140.1';
+const ORANGE = '#b45309', BLUE = '#1f4e8c', GREEN = '#1f7a3d', RED = '#b3261e';
+const LOCKLABEL = { ip:'adresse IP', gw:'passerelle', dns:'serveur DNS' };
+
+// Champs modifiables, par machine et par étape
+const STEPS = [
+  { t:'Un réseau local',
+    c:`Démarrez l'<b>Ordinateur</b> et le <b>Portable</b> : cliquez sur la machine dans le schéma, puis sur <b>Démarrer</b> dans son Bureau. Dans l'onglet <b>Configuration IP</b>, réglez l'adresse de chaque machine : Ordinateur <b>192.168.0.11</b>, Portable <b>192.168.0.10</b>. Puis, dans l'<b>Invite de commandes</b> du Portable, tapez <code>ping 192.168.0.11</code>.`,
+    en: { PC:['ip'], NB:['ip'] } },
+  { t:'Sortir du réseau',
+    c:`Dans le tableau, cliquez sur « Lancer le ping » : la fenêtre de la machine s'ouvre, la commande est tapée dans l'invite de commandes et le paquet se déplace sur le schéma. Indiquez pour chaque ping si la réponse est <b>réussie ou non</b>. <b>Pour cette question, augmentez la vitesse des paquets</b> (curseur sous le schéma).`,
+    en: {}, matrix:true },
+  { t:'La passerelle',
+    c:`Le Portable fonctionne déjà vers l'extérieur. Ouvrez sa <b>Configuration IP</b> et relevez sa passerelle. Reportez cette adresse comme passerelle de l'<b>Ordinateur</b>, puis faites <code>ping 192.168.140.1</code> depuis l'Ordinateur. Observez le trajet du paquet sur le schéma.`,
+    en: { PC:['gw'] } },
+  { t:'Le site et le serveur DNS',
+    c:`Sur le Bureau du Portable, ouvrez le <b>Navigateur</b> et tapez <code>192.168.21.1</code> : la page du site s'affiche. Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (Configuration IP), puis retapez le nom dans le navigateur.`,
+    en: { PC:['dns'], NB:['dns'] } },
+  { t:'Bilan', recap:true, c:`Deux machines ont communiqué, du réseau local jusqu'à un site. Voici ce qu'il faut retenir de ce parcours.`, en:{} }
+];
+const VALID = [
+  'le ping du Portable vers l\'Ordinateur doit réussir.',
+  'répondez correctement aux six pings du tableau.',
+  'l\'Ordinateur a la même passerelle que le Portable, et le ping vers 192.168.140.1 réussit.',
+  `réglez le DNS (192.168.140.1) sur les deux machines, puis tapez ${SITE} dans le navigateur d'une machine : la page doit s'afficher.`,
+  ''
+];
+const KEYS = ['a', 'b', 'c', 'd'];
+
+let step = 0, sel = null, pas = false, gateResolve = null, drag = null, busy = false, brBusy = false;
+let MAT = {}, VERD = null, SNAP = {};
+// Fenêtres ouvertes à l'intérieur du bureau de la machine sélectionnée
+const wins = { conf:false, term:false, brow:false };
+let front = null;     // fenêtre au premier plan (null = bureau seul)
+let siteOK = false;   // le site a été atteint par son nom
+const flags = { a:false, b:false, c:false, d:false };
+const OUT = {}, LAST = {};
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('labo');
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+function banner() {
+  return `Invite de commandes\n\nTapez « aide » pour la liste des commandes.\n`;
+}
+
+// ---------- Scénario ----------
+function loadScenario() {
+  NODES = [
+    { id:'PC',  type:'pc', label:'Ordinateur', ifaces:[{ip:''}], gw:'', dns:'', on:false, x:90,  y:110 },
+    { id:'NB',  type:'notebook', label:'Portable', ifaces:[{ip:''}], gw:'192.168.0.254', dns:'', on:false, x:90,  y:300 },
+    { id:'SW1', type:'switch', label:'Switch', x:230, y:205 },
+    { id:'BOX', type:'router', label:'Box', ifaces:[{ip:'192.168.0.254'}, {ip:'192.168.140.100', wan:true}], defGw:'192.168.140.254', x:370, y:205 },
+    { id:'SW2', type:'switch', label:'Switch opérateur', x:510, y:205 },
+    { id:'OP',  type:'router', label:'Routeur opérateur', ifaces:[{ip:'192.168.140.254'}, {ip:'192.168.21.254'}], defGw:'', x:650, y:205 },
+    { id:'DNS', type:'server', label:'Serveur DNS', ifaces:[{ip:'192.168.140.1'}], gw:'192.168.140.254', dns:'', dnsSvc:true, records:{[SITE]: SITE_IP}, x:510, y:80 },
+    { id:'WEB', type:'server', label:'Serveur Web', ifaces:[{ip:SITE_IP}], gw:'192.168.21.254', dns:'', web:true, x:790, y:205 }
+  ];
+  LINKS = []; portSeq = 1000;
+  const L = (a,b) => addLink({n:a,i:0}, {n:b,i:0});
+  L('PC','SW1'); L('NB','SW1'); L('SW1','BOX'); L('BOX','SW2'); L('OP','SW2'); L('DNS','SW2'); L('OP','WEB');
+  for (const k in flags) flags[k] = false;
+  for (const k of ['PC','NB']) { OUT[k] = banner(); LAST[k] = ''; }
+  MAT = {}; VERD = null; brBusy = false;
+  sel = null; step = 0; wins.conf = false; wins.term = false; wins.brow = false; front = null; siteOK = false;
+  SNAP = {}; SNAP[0] = takeSnap();
+  draw(); render();
+}
+
+// ---------- Schéma ----------
+function el(t, a) { const e = document.createElementNS(SVGNS, t); for (const k in a) e.setAttribute(k, a[k]); return e; }
+function draw() {
+  svg.innerHTML = '';
+  for (const l of LINKS) {
+    const a = N(l.a.n), b = N(l.b.n);
+    svg.appendChild(el('line', { x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:'#4b5563', 'stroke-width':2.5 }));
+  }
+  for (const n of NODES) {
+    const g = el('g', { transform:`translate(${n.x},${n.y})`, style:'cursor:grab' });
+    g.appendChild(el('rect', { x:-50, y:-40, width:100, height:84, fill:'transparent' }));
+    const c = (sel === n.id) ? '#1f4e8c' : '#243041';
+    const w = (sel === n.id) ? 3.5 : 2;
+    if (n.type === 'pc') {
+      g.appendChild(el('rect', { x:-26, y:-22, width:52, height:34, rx:3, fill:n.on ? '#fff' : '#d9dee7', stroke:c, 'stroke-width':w }));
+      g.appendChild(el('rect', { x:-6, y:12, width:12, height:6, fill:c }));
+      g.appendChild(el('rect', { x:-14, y:17, width:28, height:3, fill:c }));
+    } else if (n.type === 'notebook') {
+      g.appendChild(el('rect', { x:-24, y:-20, width:48, height:32, rx:2, fill:n.on ? '#fff' : '#d9dee7', stroke:c, 'stroke-width':w }));
+      g.appendChild(el('path', { d:'M-30 14 L30 14 L26 20 L-26 20 Z', fill:c }));
+    } else if (n.type === 'switch') {
+      g.appendChild(el('rect', { x:-36, y:-13, width:72, height:26, rx:5, fill:'#eef3fb', stroke:c, 'stroke-width':2 }));
+      for (let k = -24; k <= 24; k += 8) g.appendChild(el('circle', { cx:k, cy:0, r:2.5, fill:c }));
+    } else if (n.type === 'router') {
+      g.appendChild(el('circle', { cx:0, cy:0, r:24, fill:'#fff', stroke:c, 'stroke-width':2 }));
+      const t = el('text', { x:0, y:5, 'text-anchor':'middle', 'font-size':13, fill:c }); t.textContent = '⇄'; g.appendChild(t);
+    } else {
+      g.appendChild(el('rect', { x:-22, y:-28, width:44, height:56, rx:4, fill:'#fff', stroke:c, 'stroke-width':2 }));
+      for (const y of [-14,-2,10]) g.appendChild(el('line', { x1:-14, y1:y, x2:14, y2:y, stroke:c, 'stroke-width':2 }));
+    }
+    const l1 = el('text', { x:0, y:44, class:'nlab' }); l1.textContent = n.label; g.appendChild(l1);
+    let sub = '';
+    if (n.type === 'switch') sub = '';
+    else if (n.type === 'pc' || n.type === 'notebook') sub = n.on ? (n.ifaces[0].ip || 'sans IP') : 'éteint';
+    else sub = n.ifaces[0].ip;
+    if (sub) { const l2 = el('text', { x:0, y:58, class:'nip' }); l2.textContent = sub; g.appendChild(l2); }
+    g.addEventListener('pointerdown', e => { drag = { id:n.id, sx:e.clientX, sy:e.clientY, ox:n.x, oy:n.y, moved:false }; e.stopPropagation(); });
+    svg.appendChild(g);
+  }
+}
+window.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const r = svg.getBoundingClientRect(), s = 880 / r.width;
+  const dx = (e.clientX - drag.sx) * s, dy = (e.clientY - drag.sy) * s;
+  if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  if (drag.moved) { const n = N(drag.id); n.x = drag.ox + dx; n.y = drag.oy + dy; draw(); }
+});
+window.addEventListener('pointerup', () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved && isHost(N(d.id))) pickHost(d.id);
+  else if (d.moved) draw();
+});
+
+// ---------- Étapes ----------
+function furthest() { let f = 0; while (f < STEPS.length - 1 && doneStep(f)) f++; return f; }
+function doneStep(i) { return [flags.a, flags.b, flags.c, flags.d][i]; }
+function go(delta) { setStep(step + delta); }
+function setStep(s) {
+  if (s < 0 || s >= STEPS.length || s > furthest()) return;
+  step = s; sel = null; closeBrowser(); draw();
+  if (!SNAP[s]) SNAP[s] = takeSnap();
+  render(); window.scrollTo({ top:0, behavior:'smooth' });
+}
+function render() {
+  const st = STEPS[step];
+  document.body.classList.toggle('bilan', !!st.recap);
+  document.getElementById('stepBar').innerHTML = STEPS.map((x, i) =>
+    `<button class="chip ${i === step ? 'cur' : ''} ${doneStep(i) ? 'ok' : ''}" ${i > furthest() ? 'disabled' : ''} onclick="setStep(${i})">${i + 1}. ${x.t}</button>`).join('');
+  document.getElementById('stepNo').textContent = `Étape ${step + 1} sur ${STEPS.length}`;
+  document.getElementById('stepTitle').textContent = st.t;
+  document.getElementById('stepText').innerHTML = `<p style="margin:4px 0">${st.c}</p><p id="stepStatus" class="legend" style="font-size:.9rem"></p>`;
+  document.getElementById('stepExtra').innerHTML = st.recap ? recapHTML() : (st.matrix ? '<div id="matrix"></div>' : '');
+  renderWin();
+  renderMatrix();
+  updateCheck();
+}
+function updateCheck() {
+  // Étape 4 validée : le site a été atteint par son nom ET le DNS est réglé sur les deux machines
+  flags.d = siteOK && N('PC').dns === DNS_IP && N('NB').dns === DNS_IP;
+  const f = furthest();
+  [...document.getElementById('stepBar').children].forEach((b, i) => {
+    b.className = `chip ${i === step ? 'cur' : ''} ${doneStep(i) ? 'ok' : ''}`;
+    b.disabled = i > f;
+  });
+  document.getElementById('bNext2').disabled = step >= STEPS.length - 1 || !doneStep(step);
+  document.getElementById('bPrev').disabled = step === 0;
+  const st = document.getElementById('stepStatus');
+  if (st) st.innerHTML = STEPS[step].recap ? '' : doneStep(step) ? '✔ Étape validée : vous pouvez passer à la suivante.' : 'Pour valider cette étape : ' + VALID[step];
+}
+
+// ---------- Fenêtre de la machine (bureau et fenêtres) ----------
+function pickHost(id) {
+  const prev = sel; sel = id;
+  if (prev !== id) { wins.term = step === 1; wins.conf = step !== 1; wins.brow = false; front = step === 1 ? 'term' : 'conf'; }
+  draw(); renderWin();
+}
+function closeWin() { sel = null; closeBrowser(); draw(); renderWin(); }
+function openWin(t) { wins[t] = true; front = t; renderWin(); }
+function closeSub(t) { wins[t] = false; if (front === t) front = firstOpen(); renderWin(); }
+// Barre des tâches : un clic sur une fenêtre au premier plan la réduit, un clic sur une autre la met au premier plan
+function focusWin(t) { if (front === t) front = null; else { wins[t] = true; front = t; } renderWin(); }
+function firstOpen() { return ['conf', 'term', 'brow'].find(k => wins[k]) || null; }
+function showTab(t) { if (t !== 'desk') openWin(t); else renderWin(); }
+const TASK_ICONS = {
+  conf: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><rect x="3" y="22" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><rect x="19" y="22" width="10" height="7" rx="1" fill="#f3f4f6" stroke="#fff"/><path d="M16 10v6M8 22v-6h16v6" stroke="#fff" stroke-width="1.5" fill="none"/></svg>',
+  term: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="2" fill="#0c0c0c" stroke="#fff" stroke-width="1.5"/><path d="M8 12l4 3-4 3M14 19h8" stroke="#16c60c" stroke-width="2" fill="none"/></svg>',
+  brow: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="#2b7bd6" stroke="#fff" stroke-width="1.5"/><ellipse cx="16" cy="16" rx="5" ry="12" fill="none" stroke="#dbeafe" stroke-width="1.2"/><path d="M4 16h24M6 10h20M6 22h20" stroke="#dbeafe" stroke-width="1.2"/></svg>'
+};
+const TASK_NAMES = { conf:'Configuration IP', term:'Invite de commandes', brow:'Navigateur' };
+function renderTasks() {
+  const on = N(sel).on;
+  document.getElementById('tasks').innerHTML = ['conf', 'term', 'brow']
+    .filter(k => wins[k] && on)
+    .map(k => `<button class="tbi ${front === k ? 'on' : ''}" title="${TASK_NAMES[k]}" aria-label="${TASK_NAMES[k]}" onclick="focusWin('${k}')">${TASK_ICONS[k]}</button>`).join('');
+}
+function renderWin() {
+  const win = document.getElementById('win'), hint = document.getElementById('hint');
+  if (!sel) { win.style.display = 'none'; hint.style.display = 'block'; return; }
+  hint.style.display = 'none'; win.style.display = 'block';
+  const n = N(sel);
+  document.getElementById('winTitle').textContent = `${n.label} — ${n.on ? (n.ifaces[0].ip || 'sans IP') : 'éteint'}`;
+  document.getElementById('paneDesk').style.display = 'block';
+  document.getElementById('subConf').style.display = (front === 'conf' && n.on) ? 'flex' : 'none';
+  document.getElementById('subTerm').style.display = (front === 'term' && n.on) ? 'flex' : 'none';
+  document.getElementById('browser').style.display = (front === 'brow' && n.on) ? 'flex' : 'none';
+  renderTasks();
+  document.getElementById('deskOff').style.display = n.on ? 'none' : 'block';
+  document.getElementById('deskOn').style.display = n.on ? 'flex' : 'none';
+  document.getElementById('offmsg').textContent = n.booting ? 'Démarrage en cours…' : "L'ordinateur est éteint.";
+  document.getElementById('bPowerOff').disabled = !!n.booting;
+  renderFields();
+  showConsole();
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  if (front === 'term' && n.on) setTimeout(() => document.getElementById('termIn').focus(), 0);
+}
+function fieldOK(hid, f) {
+  const e = STEPS[step].en || {};
+  return (e[hid] || []).includes(f);
+}
+function renderFields() {
+  const n = N(sel);
+  const f = (k, label, val, ph) => {
+    const ok = fieldOK(sel, k);
+    return `<div><label>${label}</label><input type="text" id="f-${k}" value="${val}" placeholder="${ph}" ${ok ? '' : 'disabled'} class="${ok ? 'focus' : ''}" oninput="setField('${k}',this.value)"></div>`;
+  };
+  document.getElementById('netname').textContent = 'Propriétés IPv4 : ' + n.label;
+  document.getElementById('fields').innerHTML =
+    f('ip', 'Adresse IPv4', n.ifaces[0].ip, '192.168.x.x') +
+    `<div><label>Masque (déjà défini)</label><input type="text" value="255.255.255.0" disabled></div>` +
+    f('gw', 'Passerelle par défaut', n.gw, 'vide = aucune') +
+    f('dns', 'Serveur DNS préféré', n.dns, 'vide = aucun');
+  const en = Object.keys(LOCKLABEL).filter(k => fieldOK(sel, k));
+  let msg = en.length ? `Modifiable à cette étape : ${en.map(k => LOCKLABEL[k]).join(', ')}. Les autres champs sont verrouillés.` : 'Rien à modifier sur cette machine à cette étape : les champs sont verrouillés.';
+  if (sel === 'NB' && step === 2) msg += ' Cette passerelle est la référence : relevez-la pour l\'Ordinateur.';
+  document.getElementById('stepLock').textContent = msg;
+}
+function setField(k, v) {
+  if (!fieldOK(sel, k)) return;
+  const err = document.getElementById('cfgErr');
+  v = v.trim();
+  if (v && !ipOK(v)) { err.textContent = 'Adresse invalide (ex. 192.168.0.11).'; return; }
+  err.textContent = '';
+  const n = N(sel);
+  if (k === 'ip') n.ifaces[0].ip = v; else n[k] = v;
+  draw(); updateCheck();
+}
+function togglePower() {
+  const n = N(sel); if (!n || n.booting) return;
+  if (!n.on) {
+    // Démarrage réel : un court délai avant l'arrivée sur le Bureau
+    n.booting = true; renderWin();
+    setTimeout(() => { n.booting = false; n.on = true; draw(); renderWin(); renderMatrix(); }, 1500);
+    return;
+  }
+  n.on = false; closeBrowser();
+  draw(); renderWin(); renderMatrix();
+}
+
+// ---------- Invite de commandes ----------
+const HIST = []; let hidx = -1;
+function showConsole() {
+  document.getElementById('termOut').innerHTML = OUT[sel] || '';
+  const box = document.getElementById('termBox');
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('prompt').textContent = 'C:\\Users\\eleve>';
+}
+function tprint(t, cls, hid) {
+  hid = hid || sel;
+  const h = (cls ? `<span class="${cls}">` : '') + t + (cls ? '</span>' : '') + '\n';
+  OUT[hid] = (OUT[hid] || '') + h;
+  if (hid === sel) showConsole();
+}
+function termKey(e) {
+  const inp = e.target;
+  if (e.key === 'Enter') termSubmit();
+  else if (e.key === 'ArrowUp' && HIST.length) { hidx = Math.min(HIST.length - 1, hidx + 1); inp.value = HIST[HIST.length - 1 - hidx]; e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { if (hidx > 0) { hidx--; inp.value = HIST[HIST.length - 1 - hidx]; } else { hidx = -1; inp.value = ''; } e.preventDefault(); }
+}
+function termSubmit() {
+  const inp = document.getElementById('termIn'), line = inp.value.trim();
+  if (busy || !line || !sel) return;
+  inp.value = ''; HIST.push(line); hidx = -1;
+  runCmd(sel, line);
+}
+function setBusy(b) {
+  busy = b;
+  document.getElementById('pline').style.display = b ? 'none' : 'flex';
+  if (!b && front === 'term') setTimeout(() => document.getElementById('termIn').focus(), 0);
+}
+async function runCmd(hid, line) {
+  if (!N(hid).on) { tprint('Ordinateur éteint.', 'ko', hid); return { ok:false }; }
+  setBusy(true);
+  tprint(`C:\\Users\\eleve>${line}`, 'cmd', hid);
+  const [cmd, ...args] = line.split(/\s+/);
+  let res = { ok:false };
+  try {
+    if (cmd === 'aide') tprint('Commandes : ipconfig · ping <adresse ou nom> · cls', '', hid);
+    else if (cmd === 'cls') { OUT[hid] = banner(); if (hid === sel) showConsole(); }
+    else if (cmd === 'ipconfig') winIpconfig(hid);
+    else if (cmd === 'ping') res = await winPing(hid, args[0]);
+    else tprint(`'${cmd}' n'est pas reconnu en tant que commande interne ou externe, un programme exécutable ou un fichier de commandes.`, 'ko', hid);
+  } finally { setBusy(false); renderMatrix(); }
+  return res;
+}
+function winIpconfig(hid) {
+  const h = N(hid);
+  tprint(`\nConfiguration IP de la machine\n\nCarte réseau :\n   Adresse IPv4. . . . . . . . . . . : ${h.ifaces[0].ip || ''}\n   Masque de sous-réseau. . . . . . : 255.255.255.0\n   Passerelle par défaut. . . . . . : ${h.gw || ''}\n   Serveur DNS. . . . . . . . . . . : ${h.dns || ''}\n`, '', hid);
+}
+const countRouters = hops => (hops || []).filter(id => N(id) && N(id).type === 'router').length;
+
+// Un tour de ping : le déplacement des paquets sur le schéma et la ligne affichée sont synchronisés
+async function pingRound(hid, p, src, dst, quiet) {
+  if (p.ok) {
+    await animate(p.legs[0], BLUE, 'demande');
+    await animate(p.legs[1], GREEN, 'réponse');
+    const routers = countRouters(p.legs[0]) + countRouters(p.legs[1]);
+    const ms = routers === 0 ? 0 : 1 + 2 * routers;
+    const ttl = 128 - countRouters(p.legs[1]);
+    if (!quiet) tprint(`Réponse de ${dst} : octets=32 ${ms === 0 ? 'temps<1ms' : 'temps=' + ms + ' ms'} TTL=${ttl}`, 'ok', hid);
+    return { ok:true, ms };
+  }
+  if (p.legs.length === 2) {
+    await animate(p.legs[0], BLUE, 'demande');
+    await animate(p.legs[1], GREEN, 'réponse');
+    markStop(p.legs[1][p.legs[1].length - 1]);
+    await sleep(500);
+    if (!quiet) tprint('Délai d\'attente de la demande dépassé.', 'ko', hid);
+    return { ok:false };
+  }
+  const hops = p.legs[0];
+  await animate(hops, BLUE, 'demande');
+  markStop(hops[hops.length - 1]);
+  await animate([...hops].reverse(), RED, 'erreur');
+  if (!quiet) {
+    if (p.msg.includes('aucune machine ne répond')) tprint(`Réponse de ${src} : Hôte de destination inaccessible.`, 'ko', hid);
+    else tprint(`Réponse de ${src} : Impossible de joindre le réseau de destination.`, 'ko', hid);
+  }
+  return { ok:false };
+}
+async function winPing(hid, target) {
+  const h = N(hid), src = h.ifaces[0].ip;
+  if (!target) { tprint('\nUtilisation : ping [adresse ou nom d\'hôte]', '', hid); return { ok:false }; }
+  if (!src) { tprint('\nÉchec de la transmission. Erreur générale.', 'ko', hid); return { ok:false }; }
+  const q = resolveCore(hid, target);
+  if (q.legs.length) await sendLegs(q.legs, 'DNS', ORANGE);
+  if (!q.ok) { tprint(`\nImpossible de trouver l'hôte ${target}.`, 'ko', hid); return { ok:false }; }
+  const dst = q.ip;
+  tprint(`\nEnvoi d'une requête 'Ping'  ${ipOK(target) ? dst : target + ' [' + dst + ']'} avec 32 octets de données :`, '', hid);
+  let sent = 0, recv = 0; const times = [];
+  for (let i = 0; i < 4; i++) {
+    const p = pingCore(hid, dst);
+    sent++;
+    const r = await pingRound(hid, p, src, dst, false);
+    if (r.ok) { recv++; times.push(r.ms); }
+    await sleep(300);
+  }
+  const lost = sent - recv, pct = Math.round(lost * 100 / sent);
+  tprint(`\nStatistiques Ping pour ${dst}:\n    Paquets : envoyés = ${sent}, reçus = ${recv}, perdus = ${lost} (perte ${pct}%),`, '', hid);
+  if (times.length) {
+    const mn = Math.min(...times), mx = Math.max(...times), av = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+    tprint(`Durée approximative des boucles en millisecondes :\n    Minimum = ${mn}ms, Maximum = ${mx}ms, Moyenne = ${av}ms`, '', hid);
+  }
+  checkAfterPing(hid, dst, recv > 0);
+  return { ok: recv > 0 };
+}
+function checkAfterPing(hid, ip, ok) {
+  if (!ok) return;
+  if (hid === 'NB' && ip === '192.168.0.11') flags.a = true;
+  if (hid === 'PC' && ip === '192.168.140.1' && N('PC').gw && N('PC').gw === N('NB').gw) flags.c = true;
+  updateCheck();
+}
+
+// ---------- Navigateur (Bureau de la machine) ----------
+function openBrowser() {
+  if (!sel || !N(sel).on) return;
+  wins.brow = true; front = 'brow'; renderWin();
+  document.getElementById('urlIn').focus();
+}
+function closeBrowser() {
+  wins.brow = false;
+  if (front === 'brow') front = firstOpen();
+  if (sel) renderWin();
+}
+function setPage(html, status) {
+  document.getElementById('bpage').innerHTML = html;
+  document.getElementById('bstatus').textContent = status || '';
+}
+async function browseGo() {
+  const inp = document.getElementById('urlIn'), name = inp.value.trim();
+  if (!name || brBusy || !sel) return;
+  const hid = sel;
+  brBusy = true;
+  setPage('', `Recherche de « ${name} »…`);
+  try {
+    const r = resolveCore(hid, name);
+    if (r.legs.length) await sendLegs(r.legs, 'DNS', ORANGE);
+    if (!r.ok) { setPage(`<h3>Impossible d'accéder à ce site</h3><p>${r.msg}</p>`, 'Échec'); return; }
+    const src = N(hid).ifaces[0].ip;
+    const p = pingCore(hid, r.ip);
+    const res = await pingRound(hid, p, src, r.ip, true);
+    if (!res.ok) { setPage(`<h3>Le site ne répond pas</h3><p>Le serveur ${r.ip} n'a pas répondu. Vérifiez les réglages réseau de cette machine.</p>`, 'Échec'); return; }
+    const srv = NODES.find(n => n.web && n.ifaces && n.ifaces[0].ip === r.ip);
+    if (!srv) { setPage('<h3>Connexion refusée</h3>', 'Échec'); return; }
+    setPage(`<h2 style="margin:0 0 6px">Bienvenue sur le site de la classe</h2><p>Page d'accueil du serveur ${r.ip}.</p>`, `Adresse : ${name} · page affichée`);
+    if (name === SITE) { siteOK = true; updateCheck(); }
+  } finally { brBusy = false; }
+}
+
+// ---------- Tableau des pings (étape 2) ----------
+let VERDICT_KEY = null;
+function matTargets(src) {
+  const other = src === 'PC' ? 'NB' : 'PC';
+  return [ { ip: N(other).ifaces[0].ip }, { ip:'192.168.140.1' }, { ip:SITE_IP } ];
+}
+function renderMatrix() {
+  const box = document.getElementById('matrix');
+  if (!box || !STEPS[step].matrix) return;
+  let h = '<table class="m"><tr><th style="width:26%">Depuis</th><th>Vers l\'autre machine</th><th>Serveur DNS<br>192.168.140.1</th><th>Serveur Web<br>' + SITE_IP + '</th></tr>';
+  for (const src of ['PC', 'NB']) {
+    const s = N(src);
+    h += `<tr><th>${s.label}<br><small>${s.ifaces[0].ip || 'sans IP'}</small></th>`;
+    for (const t of matTargets(src)) h += `<td>${cellHTML(src, t.ip)}</td>`;
+    h += '</tr>';
+  }
+  h += '</table>';
+  const nb = Object.values(MAT).filter(v => v.done).length;
+  h += VERD ? `<div class="verdict ${VERD.ok ? 'vok' : 'vko'}">${VERD.ok ? '✔' : '✖'} ${VERD.msg}</div>` : '';
+  h += `<p class="legend">Bonnes réponses : ${nb} / 6. Pour chaque ping, observez la console et indiquez si la réponse est réussie ou non. Pour aller plus vite, augmentez la vitesse des paquets (curseur sous le schéma).</p>`;
+  box.innerHTML = h;
+  flags.b = Object.keys(MAT).length === 6 && Object.values(MAT).every(v => v.done);
+  updateCheck();
+}
+// Une case du tableau : un bouton de même taille dans tous les cas
+function cellHTML(src, ip) {
+  const s = N(src), key = src + '|' + ip, m = MAT[key];
+  const ready = !!(s.ifaces[0].ip && ip);
+  if (m && m.run) return '<button class="cb" disabled>en cours…</button>';
+  if (!m) return `<button class="cb" ${ready ? '' : 'disabled'} onclick="matPing('${src}','${ip}')">Lancer le ping</button>`;
+  if (m.done) return `<button class="cb ${m.declared ? 'okb' : 'kob'}" disabled>${m.declared ? '✔ Réussi' : '✖ Échec'}</button>`;
+  const wrong = m.wrong ? '<div class="msgwrong">✖ Pas la bonne réponse</div>' : '';
+  return wrong + `<div class="pair"><button class="cb okb" onclick="answer('${key}',true)">✔ Réussi</button><button class="cb kob" onclick="answer('${key}',false)">✖ Échec</button></div>`;
+}
+// L'élève indique le résultat ; on le compare au résultat réel du ping
+function answer(key, val) {
+  const m = MAT[key]; if (!m) return;
+  if (val === m.actual) {
+    m.done = true; m.declared = val; m.wrong = false;
+    VERD = { ok:true, msg:`Bonne réponse pour « ${m.label} ».` };
+  } else {
+    m.wrong = true;
+    VERD = { ok:false, msg:'Pas la bonne réponse : relisez le message de la console.' };
+  }
+  renderMatrix();
+}
+async function matPing(src, dst) {
+  if (busy) return;
+  const key = src + '|' + dst;
+  if (!N(src).on) { VERD = { ok:false, msg:'Démarrez d\'abord cette machine (onglet Bureau).' }; renderMatrix(); return; }
+  MAT[key] = { run:true, label: `${N(src).label} → ${dst}` }; VERD = null; renderMatrix();
+  const res = await openAndType(src, 'ping ' + dst);
+  MAT[key] = { run:false, label: `${N(src).label} → ${dst}`, actual: !!res.ok, done:false, wrong:false };
+  renderMatrix();
+}
+// Ouvre la fenêtre de la machine, tape la commande lettre par lettre, puis l'exécute
+async function openAndType(hid, line) {
+  sel = hid; wins.term = true; front = 'term'; draw(); renderWin();
+  const inp = document.getElementById('termIn');
+  inp.value = '';
+  for (const ch of line) { inp.value += ch; await sleep(60); }
+  await sleep(250);
+  inp.value = '';
+  HIST.push(line);
+  return runCmd(hid, line);
+}
+
+// ---------- Déplacement des paquets sur le schéma ----------
+function gate(text) {
+  if (!pas) return Promise.resolve();
+  const b = document.getElementById('bGate');
+  b.disabled = false; b.textContent = 'Saut suivant ▶ (' + text + ')';
+  return new Promise(res => { gateResolve = res; });
+}
+function releaseGate() {
+  const b = document.getElementById('bGate');
+  if (gateResolve) { const r = gateResolve; gateResolve = null; b.disabled = true; b.textContent = 'Saut suivant ▶'; r(); }
+}
+function shortestPath(a, b) {
+  const prev = { [a]: null }, q = [a];
+  while (q.length) {
+    const c = q.shift(); if (c === b) break;
+    for (const l of LINKS) {
+      let nb = null; if (l.a.n === c) nb = l.b.n; else if (l.b.n === c) nb = l.a.n;
+      if (nb && !(nb in prev)) { prev[nb] = c; q.push(nb); }
+    }
+  }
+  const path = []; let c = b; if (!(b in prev)) return [a, b];
+  while (c) { path.unshift(c); c = prev[c]; }
+  return path;
+}
+async function sendLegs(legs, tag, color) {
+  for (const l of legs) await animate(l, color, tag);
+}
+function markStop(id) {
+  const n = N(id); if (!n) return;
+  const t = el('text', { x:n.x + 28, y:n.y - 22, class:'plab', fill:RED });
+  t.textContent = '✖';
+  svg.appendChild(t);
+  setTimeout(() => t.remove(), 1500);
+}
+async function animate(hops, color, tag) {
+  if (!hops || hops.length < 2) return [];
+  const pts = [];
+  for (let k = 0; k < hops.length - 1; k++) {
+    const sp = shortestPath(hops[k], hops[k+1]);
+    for (let j = (k === 0 ? 0 : 1); j < sp.length; j++) pts.push(sp[j]);
+  }
+  const dot = el('circle', { r:8, fill:color, stroke:'#fff', 'stroke-width':2 });
+  const ring = el('circle', { r:30, fill:'none', stroke:color, 'stroke-width':2, 'stroke-dasharray':'4 3' });
+  const lab = el('text', { class:'plab', fill:color });
+  svg.appendChild(ring); svg.appendChild(dot); svg.appendChild(lab);
+  const delay = 60 + (1 - (+document.getElementById('speed').value) / 100) * 700;
+  const first = N(pts[0]);
+  dot.setAttribute('cx', first.x); dot.setAttribute('cy', first.y);
+  ring.setAttribute('cx', first.x); ring.setAttribute('cy', first.y);
+  lab.setAttribute('x', first.x); lab.setAttribute('y', first.y - 40);
+  lab.textContent = `${tag} · ${first.label}`;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const a = N(pts[k]), b = N(pts[k+1]);
+    await gate(`${tag} vers ${b.label}`);
+    lab.textContent = `${tag} · ${b.label}`;
+    ring.setAttribute('cx', b.x); ring.setAttribute('cy', b.y);
+    for (let s = 1; s <= 14; s++) {
+      const x = a.x + (b.x - a.x) * s / 14, y = a.y + (b.y - a.y) * s / 14;
+      dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+      lab.setAttribute('x', x); lab.setAttribute('y', y - 40);
+      await sleep(delay / 14);
+    }
+  }
+  await sleep(250);
+  dot.remove(); ring.remove(); lab.remove();
+}
+
+// ---------- Validation et réinitialisation d'étape ----------
+// Configuration de départ de l'étape (les étapes précédentes sont conservées)
+function takeSnap() {
+  const cfg = {};
+  for (const n of NODES) if (n.ifaces) cfg[n.id] = { ip:n.ifaces[0].ip, gw:n.gw, dns:n.dns, on:!!n.on };
+  return { cfg, out:{ PC:(OUT.PC || '').length, NB:(OUT.NB || '').length } };
+}
+function resetStep() {
+  const s = SNAP[step];
+  if (s) {
+    for (const id in s.cfg) { const n = N(id); if (n) { n.ifaces[0].ip = s.cfg[id].ip; n.gw = s.cfg[id].gw; n.dns = s.cfg[id].dns; n.on = s.cfg[id].on; } }
+    for (const k of ['PC', 'NB']) { OUT[k] = (OUT[k] || '').slice(0, s.out[k]); }
+  }
+  if (step === 1) { MAT = {}; VERD = null; }
+  if (step <= 3) siteOK = false;
+  for (let i = step; i < KEYS.length; i++) flags[KEYS[i]] = false;
+  for (let i = step + 1; i < STEPS.length; i++) delete SNAP[i];
+  closeBrowser();
+  draw(); render();
+}
+
+// ---------- Bilan final ----------
+function recapHTML() {
+  const items = [
+    ['Adresse IP', 'identifie chaque machine. Les trois premiers nombres désignent le réseau (ici 192.168.0 pour la maison).'],
+    ['Switch', 'relie les machines d\'un même réseau local : elles se parlent directement, sans passer par la passerelle.'],
+    ['Passerelle', 'est l\'appareil (la box) qui fait sortir un paquet vers un autre réseau. Une machine ne l\'utilise que pour une destination hors de son réseau.'],
+    ['Box et NAT', 'remplacent l\'adresse de la maison par l\'adresse de la box à la sortie, et retiennent qui a envoyé quoi pour que la réponse revienne.'],
+    ['Serveur DNS', 'traduit un nom (' + SITE + ') en adresse IP. Il est interrogé avant toute connexion au site.'],
+    ['Ping', 'envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.']
+  ];
+  return `<ol class="recap">${items.map(([a, b]) => `<li><b>${a}</b> ${b}</li>`).join('')}</ol>
+    <p class="legend">Chemin d'une visite de site : Portable → serveur DNS (nom → adresse IP) → box → opérateur → serveur Web (page affichée).</p>
+    <p><button class="sec" onclick="setStep(3)">Revoir l'étape 4</button> <button class="sec" onclick="resetTP()">Tout recommencer</button></p>`;
+}
+function resetTP() { if (confirm('Recommencer le TP depuis le début ?')) loadScenario(); }
+
+// ---------- Export ----------
+function exportSVG() {
+  const src = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([src], { type:'image/svg+xml' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'schema_reseau.svg';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+loadScenario();
+</script>
+</body>
+</html>
