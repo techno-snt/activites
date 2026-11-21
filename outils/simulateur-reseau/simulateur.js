@@ -1,4 +1,4 @@
-/* Simulateur de réseau, inspiré de Filius.
+/* Simulateur réseau : moteur identique à celui de l'activité « Réseau : IP, passerelle et DNS ».
    Le moteur de routage est le même que celui de l'activité « Réseau : IP, passerelle et DNS ».
    Simplification pédagogique : tous les réseaux sont des /24 (masque 255.255.255.0). */
 (function () {
@@ -613,7 +613,7 @@
     var data = JSON.stringify({ version: 1, nodes: NODES, links: LINKS, portSeq: portSeq }, null, 2);
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-    a.download = 'reseau-filius.json';
+    a.download = 'simulateur-reseau.json';
     document.body.appendChild(a); a.click(); a.remove();
     setStatus('Plan exporté.');
   }

@@ -1,4 +1,4 @@
-/* Simulateur de réseau : styles propres à l'outil (la charte du site vient de assets/style.css). */
+/* Simulateur réseau : styles propres à l'outil (la charte du site vient de assets/style.css). */
 
 .tool-grid {
   display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr);
