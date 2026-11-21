@@ -4,63 +4,61 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Activités interactives pour la technologie (3e) et les sciences numériques et technologie (2de).">
+<meta name="description" content="Activités concrètes pour la technologie (3e) et la SNT (2de).">
 <title>Techno &amp; SNT Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
 <link rel="stylesheet" href="assets/style.css">
-<script src="assets/site.js"></script>
 </head>
 <body>
 <a class="skip" href="#contenu">Aller au contenu</a>
 <header class="site-head"><div class="wrap">
-  <a class="brand" href="index.html">Techno &amp; SNT Lab</a>
+  <a class="brand" href="index.html">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L42 14 V34 L24 44 L6 34 V14 Z" fill="#dbeafe" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/><path d="M6 14 L24 24 L42 14 M24 24 V44" fill="none" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <span class="brand-text"><strong>Techno &amp; SNT Lab</strong><span>Comprendre. Expérimenter. Créer.</span></span>
+  </a>
+  <nav class="site-nav" aria-label="Principal">
+    <a href="index.html" aria-current="page">Accueil</a>
+    <a href="technologie/">Technologie</a>
+    <a href="snt/">SNT</a>
+  </nav>
 </div></header>
 
-<main id="contenu"><div class="wrap">
-  <h1>Comprendre un réseau, c'est le manipuler.</h1>
-  <p class="lead">Des activités à faire sur ordinateur, une fiche à imprimer, et le déroulé pour ton prof. Sans compte, sans pub.</p>
-
-  <svg class="net" viewBox="0 0 680 180" role="img" aria-labelledby="net-title">
-    <title id="net-title">Schéma : une machine Technologie et une machine SNT reliées par un switch. Un paquet circule de l'une à l'autre.</title>
-    <line class="link" x1="130" y1="85" x2="300" y2="85"/>
-    <line class="link" x1="380" y1="85" x2="550" y2="85"/>
-    <circle class="node" cx="90" cy="85" r="40"/>
-    <text class="label" x="90" y="150">Technologie</text>
-    <text class="sub" x="90" y="170">3e</text>
-    <rect class="switch" x="300" y="70" width="80" height="30" rx="4"/>
-    <circle class="switch-dot" cx="318" cy="85" r="2.5"/>
-    <circle class="switch-dot" cx="336" cy="85" r="2.5"/>
-    <circle class="switch-dot" cx="354" cy="85" r="2.5"/>
-    <circle class="switch-dot" cx="362" cy="85" r="2.5"/>
-    <text class="sub" x="340" y="128">switch</text>
-    <circle class="node" cx="590" cy="85" r="40"/>
-    <text class="label" x="590" y="150">SNT</text>
-    <text class="sub" x="590" y="170">2de</text>
-    <circle class="packet" cx="130" cy="85" r="6">
-      <animateMotion dur="3.2s" repeatCount="indefinite" path="M0 0 H420"/>
-    </circle>
-  </svg>
-
-  <div class="entries">
-    <a class="entry" href="technologie/">
-      <span class="entry-level">3e · cycle 4</span>
-      <span class="entry-title">Technologie</span>
-      <p class="entry-desc">Comment marche un objet connecté ? Tu l'observes, tu le programmes, tu le testes.</p>
-      <span class="entry-cta">Voir les activités</span>
-    </a>
-    <a class="entry" href="snt/">
-      <span class="entry-level">2de · SNT</span>
-      <span class="entry-title">Sciences numériques et technologie</span>
-      <p class="entry-desc">Internet, le Web, tes données, tes photos. Sept thèmes, un labo à chaque fois.</p>
-      <span class="entry-cta">Voir les thèmes</span>
-    </a>
+<main id="contenu"><div class="wrap hero">
+  <div>
+    <h1>Techno &amp; SNT&nbsp;Lab</h1>
+    <p class="hero-lead">Des activités concrètes pour la technologie et la SNT. Sans blabla.</p>
   </div>
 
-  <p class="note">Le site s'ouvre dans ton navigateur. Une fois chargé, le simulateur marche hors ligne.</p>
+  <div class="cards">
+    <a class="card blue" href="technologie/">
+      <span class="ico">
+        <svg viewBox="0 0 72 72" aria-hidden="true">
+          <circle cx="30" cy="30" r="16" fill="none" stroke="#1769c2" stroke-width="8" stroke-dasharray="6 4.5"/>
+          <circle cx="30" cy="30" r="6" fill="#1769c2"/>
+          <path d="M20 50 L40 62 L60 50 V28 L40 40 L20 28 Z" fill="#8fc1f0" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M20 28 L40 40 L60 28 M40 40 V62" fill="none" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <h2 class="card-title">Technologie</h2>
+      <p>Conception, objets, énergie… on fabrique des trucs.</p>
+      <span class="btn-fill">Explorer <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </a>
+
+    <a class="card purple" href="snt/">
+      <span class="ico">
+        <svg viewBox="0 0 72 72" aria-hidden="true">
+          <path d="M22 22 L8 36 L22 50 M50 22 L64 36 L50 50 M42 16 L30 56" fill="none" stroke="#6b3fc0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <h2 class="card-title">SNT</h2>
+      <p>Données, réseaux, IA… on démonte le numérique.</p>
+      <span class="btn-fill">Explorer <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </a>
+  </div>
 </div></main>
 
-<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab · sans publicité, sans compte</p></div></footer>
 </body>
 </html>

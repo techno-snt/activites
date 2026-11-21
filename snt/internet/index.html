@@ -9,30 +9,37 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
 <link rel="stylesheet" href="../../assets/style.css">
-<script src="../../assets/site.js"></script>
 </head>
 <body>
 <a class="skip" href="#contenu">Aller au contenu</a>
 <header class="site-head"><div class="wrap">
-  <a class="brand" href="../../index.html">Techno &amp; SNT Lab</a>
-  <nav class="crumbs" aria-label="Fil d'Ariane"><a href="../../index.html">Accueil</a> / <a href="../">SNT</a> / Internet</nav>
+  <a class="brand" href="../../index.html">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 L42 14 V34 L24 44 L6 34 V14 Z" fill="#dbeafe" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/><path d="M6 14 L24 24 L42 14 M24 24 V44" fill="none" stroke="#1769c2" stroke-width="2.5" stroke-linejoin="round"/></svg>
+    <span class="brand-text"><strong>Techno &amp; SNT Lab</strong><span>Comprendre. Expérimenter. Créer.</span></span>
+  </a>
+  <nav class="site-nav" aria-label="Principal">
+    <a href="../../index.html">Accueil</a>
+    <a href="../../technologie/">Technologie</a>
+    <a href="../" aria-current="page">SNT</a>
+  </nav>
 </div></header>
 
 <main id="contenu"><div class="wrap">
+  <p class="crumbs"><a href="../">SNT</a> / Internet</p>
   <h1>Internet</h1>
   <p class="lead">Comment ton message trouve-t-il le bon ordinateur ? Adresse IP, passerelle, serveur DNS.</p>
 
-  <ul class="rows">
-    <li>
+  <ul class="items">
+    <li class="item">
       <div>
-        <a class="row-title" href="reseau-ip-passerelle-dns/">Réseau : adresse IP, passerelle et DNS</a>
+        <a class="item-title" href="reseau-ip-passerelle-dns/">Réseau : adresse IP, passerelle et DNS</a>
         <p class="meta">Séance de 45 min, en binôme. Simulateur et fiche élève.</p>
       </div>
-      <span class="status ok"><span aria-hidden="true">●</span> Disponible</span>
+      <span class="badge ok"><span aria-hidden="true">●</span> Disponible</span>
     </li>
   </ul>
 </div></main>
 
-<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab</p></div></footer>
+<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab · sans publicité, sans compte</p></div></footer>
 </body>
 </html>
