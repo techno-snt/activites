@@ -2,36 +2,65 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Activités interactives pour la technologie (3e) et les sciences numériques et technologie (2de).">
 <title>Techno &amp; SNT Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
 <link rel="stylesheet" href="assets/style.css">
+<script src="assets/site.js"></script>
 </head>
 <body>
-<header class="site"><div class="wrap">
-  <a class="brand" href="index.html">Techno <span>&amp;</span> SNT Lab</a>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header class="site-head"><div class="wrap">
+  <a class="brand" href="index.html">Techno &amp; SNT Lab</a>
 </div></header>
-<main><div class="wrap">
-  <h1>Activités interactives en classe</h1>
-  <p class="lead">Des séances clés en main : une activité à manipuler sur l'ordinateur, une fiche élève à imprimer, et le déroulé pour l'enseignant. Choisissez votre niveau.</p>
 
-  <div class="cards">
-    <a class="card" href="technologie/">
-      <span class="tag">Cycle 4 · 3e</span>
-      <h3>Technologie</h3>
-      <p>Objets et systèmes techniques : usages, fonctionnement, conception et réalisation.</p>
-      <span class="go">Voir les activités →</span>
+<main id="contenu"><div class="wrap">
+  <h1>Comprendre un réseau, c'est le manipuler.</h1>
+  <p class="lead">Des activités à faire sur ordinateur, une fiche à imprimer, et le déroulé pour ton prof. Sans compte, sans pub.</p>
+
+  <svg class="net" viewBox="0 0 680 180" role="img" aria-labelledby="net-title">
+    <title id="net-title">Schéma : une machine Technologie et une machine SNT reliées par un switch. Un paquet circule de l'une à l'autre.</title>
+    <line class="link" x1="130" y1="85" x2="300" y2="85"/>
+    <line class="link" x1="380" y1="85" x2="550" y2="85"/>
+    <circle class="node" cx="90" cy="85" r="40"/>
+    <text class="label" x="90" y="150">Technologie</text>
+    <text class="sub" x="90" y="170">3e</text>
+    <rect class="switch" x="300" y="70" width="80" height="30" rx="4"/>
+    <circle class="switch-dot" cx="318" cy="85" r="2.5"/>
+    <circle class="switch-dot" cx="336" cy="85" r="2.5"/>
+    <circle class="switch-dot" cx="354" cy="85" r="2.5"/>
+    <circle class="switch-dot" cx="362" cy="85" r="2.5"/>
+    <text class="sub" x="340" y="128">switch</text>
+    <circle class="node" cx="590" cy="85" r="40"/>
+    <text class="label" x="590" y="150">SNT</text>
+    <text class="sub" x="590" y="170">2de</text>
+    <circle class="packet" cx="130" cy="85" r="6">
+      <animateMotion dur="3.2s" repeatCount="indefinite" path="M0 0 H420"/>
+    </circle>
+  </svg>
+
+  <div class="entries">
+    <a class="entry" href="technologie/">
+      <span class="entry-level">3e · cycle 4</span>
+      <span class="entry-title">Technologie</span>
+      <p class="entry-desc">Comment marche un objet connecté ? Tu l'observes, tu le programmes, tu le testes.</p>
+      <span class="entry-cta">Voir les activités</span>
     </a>
-    <a class="card" href="snt/">
-      <span class="tag">Seconde</span>
-      <h3>SNT, sciences numériques et technologie</h3>
-      <p>Internet, le Web, données, réseaux sociaux, localisation, objets connectés, photographie numérique.</p>
-      <span class="go">Voir les thématiques →</span>
+    <a class="entry" href="snt/">
+      <span class="entry-level">2de · SNT</span>
+      <span class="entry-title">Sciences numériques et technologie</span>
+      <p class="entry-desc">Internet, le Web, tes données, tes photos. Sept thèmes, un labo à chaque fois.</p>
+      <span class="entry-cta">Voir les thèmes</span>
     </a>
   </div>
 
-  <p class="note">Sans publicité et sans inscription. Les activités s'ouvrent dans le navigateur, hors ligne après le premier chargement.</p>
+  <p class="note">Le site s'ouvre dans ton navigateur. Une fois chargé, le simulateur marche hors ligne.</p>
 </div></main>
-<footer class="site"><div class="wrap"><p>Techno &amp; SNT Lab · Ressources pour l'enseignement de la technologie et des sciences numériques et technologie.</p></div></footer>
+
+<footer class="site-foot"><div class="wrap"><p>Techno &amp; SNT Lab</p></div></footer>
 </body>
 </html>
