@@ -73,9 +73,6 @@
     <div class="canvas-wrap" id="canvasWrap">
       <svg id="canvas" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Plan du réseau">
         <defs>
-          <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-            <circle cx="1.5" cy="1.5" r="1.2" class="grid-dot"/>
-          </pattern>
           <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#ffffff"/>
             <stop offset="1" stop-color="#e9eef7"/>
@@ -84,7 +81,7 @@
             <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f1b3d" flood-opacity=".22"/>
           </filter>
         </defs>
-        <rect x="-3000" y="-3000" width="7000" height="7000" fill="url(#grid)" class="bg"/>
+        <rect x="-3000" y="-3000" width="7000" height="7000" fill="transparent" class="bg"/>
         <g id="layerLinks"></g>
         <g id="layerNodes"></g>
         <g id="layerPk"></g>

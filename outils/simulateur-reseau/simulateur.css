@@ -82,7 +82,6 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 }
 .canvas-wrap.drop { background: #eef5ff; box-shadow: inset 0 0 0 3px var(--blue); }
 #canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.grid-dot { fill: #c9d2e3; }
 #canvas[data-mode="select"] .dev { cursor: grab; }
 #canvas[data-mode="cable"] .dev, #canvas[data-mode="delete"] .dev { cursor: pointer; }
 #canvas[data-mode="delete"] .cable { cursor: pointer; }
