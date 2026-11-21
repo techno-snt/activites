@@ -42,9 +42,6 @@
     <button class="tb" type="button" data-mode="select" aria-pressed="true" title="Déplacer et configurer" aria-label="Déplacer et configurer">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 2-2 6z"/></svg>
     </button>
-    <button class="tb" type="button" data-mode="cable" aria-pressed="false" title="Câbler deux appareils" aria-label="Câbler deux appareils">
-      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2v5 M15 2v5 M7 7h10v4a5 5 0 0 1-10 0z M12 16v6"/></svg>
-    </button>
     <button class="tb" type="button" data-mode="delete" aria-pressed="false" title="Supprimer un appareil ou un câble" aria-label="Supprimer un appareil ou un câble">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16 M9 7V4h6v3 M6 7l1 14h10l1-14"/></svg>
     </button>
@@ -61,13 +58,15 @@
     </button>
   </header>
 
-  <aside class="palette" aria-label="Appareils à ajouter">
-    <button type="button" data-add="pc" draggable="true" title="Ordinateur" aria-label="Ordinateur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
-    <button type="button" data-add="notebook" draggable="true" title="Portable" aria-label="Portable"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
-    <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
-    <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
-    <button type="button" data-add="web" draggable="true" title="Serveur web" aria-label="Serveur web"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
-    <button type="button" data-add="dns" draggable="true" title="Serveur DNS" aria-label="Serveur DNS"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg></button>
+  <aside class="palette" aria-label="Appareils et câbles">
+    <button type="button" data-mode="cable" aria-pressed="false" title="Câbler : cliquer un port, puis un port de l'autre appareil" aria-label="Câble"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Câble</span></button>
+    <button type="button" data-add="pc" draggable="true" title="Ordinateur" aria-label="Ordinateur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Ordinateur</span></button>
+    <button type="button" data-add="notebook" draggable="true" title="Portable" aria-label="Portable"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Portable</span></button>
+    <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Switch</span></button>
+    <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur</span></button>
+    <button type="button" data-add="wifi" draggable="true" title="Routeur Wi-Fi" aria-label="Routeur Wi-Fi"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur Wi-Fi</span></button>
+    <button type="button" data-add="web" draggable="true" title="Serveur web" aria-label="Serveur web"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur web</span></button>
+    <button type="button" data-add="dns" draggable="true" title="Serveur DNS" aria-label="Serveur DNS"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur DNS</span></button>
   </aside>
 
   <main class="stage">

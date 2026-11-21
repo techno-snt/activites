@@ -64,12 +64,16 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
   background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto;
 }
 .palette button {
-  width: 66px; height: 62px; display: grid; place-items: center; cursor: grab;
+  width: 76px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  cursor: grab; color: var(--ink); font-family: var(--sans); font-size: 11.5px; font-weight: 700; line-height: 1.15; text-align: center;
   background: transparent; border: 1px solid transparent; border-radius: 12px;
 }
 .palette button:hover { background: var(--blue-soft); border-color: #c7d9f2; }
+.palette button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+.palette button[aria-pressed="true"] .ic { filter: brightness(0) invert(1); }
+.cap { pointer-events: none; }
 .palette button:active { cursor: grabbing; }
-.palette .ic { width: 52px; height: 52px; pointer-events: none; }
+.palette .ic { width: 44px; height: 44px; pointer-events: none; }
 .palette .ic .body { stroke-width: 2.5; }
 .palette .ic .lines { stroke: var(--ink); stroke-width: 2.5; }
 .palette .ic .dot { fill: var(--ink); }
@@ -186,6 +190,18 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .k-switch .body { fill: #dcfce7; stroke: #15803d; }
 .k-router .body { fill: #ffedd5; stroke: #c2410c; }
 .k-web .body { fill: #ede9fe; stroke: #6b3fc0; }
+.k-wifi .body { fill: #e0e7ff; stroke: #1e3a8a; }
+.k-wifi .lines { stroke: #1e3a8a; }
 .k-dns .body { fill: #fce7f3; stroke: #be185d; }
 .lab-bg { fill: rgba(255, 255, 255, .92); }
+.palette .ic .cable-ic { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.palette .ic .port-ic { fill: #ffffff; stroke: var(--blue); stroke-width: 2.5; }
+.port { cursor: pointer; }
+.port circle { fill: #ffffff; stroke: var(--ink); stroke-width: 1.5; }
+.port text { fill: var(--ink); font-family: var(--sans); font-size: 9px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.port:hover circle { stroke: var(--blue); stroke-width: 2.5; }
+.port.on circle { fill: #22a06b; stroke: #0f6b4b; }
+.port.on text { fill: #ffffff; }
+.port.pend circle { fill: var(--purple); stroke: var(--purple); }
+.port.pend text { fill: #ffffff; }
 .term pre.hint { color: #8d9bb8; }
