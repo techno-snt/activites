@@ -1,5 +1,5 @@
 /* Simulateur réseau : moteur identique à celui de l'activité « Réseau : IP, passerelle et DNS ».
-   Simplification pédagogique : tous les réseaux sont des /24 (masque 255.255.255.0). */
+   Chaque interface a un masque (par défaut 255.255.255.0, soit un réseau /24). */
 (function () {
   'use strict';
 
@@ -11,7 +11,13 @@
   var NODES = [], LINKS = [], pidSeq = 0, seq = 0;
   var N = function (id) { return NODES.find(function (n) { return n.id === id; }); };
   var ipOK = function (s) { return /^\d{1,3}(\.\d{1,3}){3}$/.test(s) && s.split('.').every(function (x) { return +x <= 255; }); };
-  var sameNet = function (a, b) { return a.split('.').slice(0, 3).join('.') === b.split('.').slice(0, 3).join('.'); };
+  var DEF_MASK = '255.255.255.0';
+  var ip2 = function (s) { return s.split('.').reduce(function (acc, x) { return ((acc << 8) | +x) >>> 0; }, 0); };
+  var maskOf = function (f) { return (f && f.mask) || DEF_MASK; };
+  // Deux adresses sont sur le même réseau si, après application du masque, elles sont égales
+  var sameNet = function (a, am, b) { var m = ip2(am); return ((ip2(a) & m) >>> 0) === ((ip2(b) & m) >>> 0); };
+  // Masque valide : une adresse dont les bits à 1 sont tous à gauche (255.255.255.0, 255.255.0.0, 255.255.255.128…)
+  var maskOK = function (s) { if (!ipOK(s)) return false; var w = (~ip2(s)) >>> 0; return (w & (w + 1)) === 0; };
   var epKey = function (e) { return e.n + ':' + e.i; };
   function linkAt(n, i) { return LINKS.find(function (l) { return (l.a.n === n && l.a.i === i) || (l.b.n === n && l.b.i === i); }); }
 
@@ -73,7 +79,7 @@
       var local = false;
       for (var i = 0; i < node.ifaces.length; i++) {
         var f = node.ifaces[i];
-        if (!f.ip || !linkAt(cur, i) || !sameNet(f.ip, dst)) continue;
+        if (!f.ip || !linkAt(cur, i) || !sameNet(f.ip, maskOf(f), dst)) continue;
         local = true;
         var seg = segment(cur, i);
         var m = null;
@@ -83,7 +89,7 @@
         }
         if (!m) return { ok: false, msg: 'Délai d\'attente dépassé : aucune machine ne répond à ' + dst + ' sur son réseau.', hops: hops };
         if (node.type === 'router' && f.wan && !node.ifaces.some(function (g) { return g.ip === dst; })) {
-          var inside = node.ifaces.some(function (g, j) { return j !== i && g.ip && sameNet(g.ip, src); });
+          var inside = node.ifaces.some(function (g, j) { return j !== i && g.ip && sameNet(g.ip, maskOf(g), src); });
           if (inside) { node.nat = node.nat || {}; node.nat[pid] = src; src = f.ip; }
         }
         hops.push(m.n); cur = m.n; break;
@@ -91,6 +97,7 @@
       if (local) continue;
       if (node.type !== 'router') {
         if (!node.gw) return { ok: false, msg: dst + ' est hors de mon réseau et aucune passerelle n\'est configurée : le paquet ne peut pas sortir.', hops: hops };
+        if (!sameNet(node.gw, maskOf(node.ifaces[0]), node.ifaces[0].ip)) return { ok: false, msg: 'La passerelle ' + node.gw + ' n\'est pas dans mon réseau : vérifiez l\'adresse et le masque.', hops: hops };
         if (!linkAt(cur, 0)) return { ok: false, msg: 'Câble non branché.', hops: hops };
         var gseg = segment(cur, 0), g = null;
         for (var q = 0; q < gseg.length; q++) {
@@ -112,7 +119,7 @@
       }
       if (!nh) return { ok: false, msg: 'La passerelle ' + node.defGw + ' du routeur ' + node.label + ' est injoignable.', hops: hops };
       if (node.ifaces[out].wan) {
-        var inside2 = node.ifaces.some(function (f2, j) { return j !== out && f2.ip && sameNet(f2.ip, src); });
+        var inside2 = node.ifaces.some(function (f2, j) { return j !== out && f2.ip && sameNet(f2.ip, maskOf(f2), src); });
         if (inside2) { node.nat = node.nat || {}; node.nat[pid] = src; src = node.ifaces[out].ip; }
       }
       hops.push(nh.n); cur = nh.n;
@@ -548,6 +555,17 @@
     parent.appendChild(wrap);
     return inp;
   }
+  function maskChange(setter) {
+    return function (inp) {
+      var v = inp.value.trim();
+      if (!maskOK(v)) { setStatus('Masque invalide : « ' + v + ' ». Exemples : 255.255.255.0 ou 255.255.0.0'); inp.value = inp.defaultValue; return; }
+      setter(v);
+      inp.defaultValue = v;
+      setStatus('Enregistré.');
+      draw();
+      refreshHosts();
+    };
+  }
   function ipChange(setter) {
     return function (inp) {
       var v = inp.value.trim();
@@ -584,11 +602,14 @@
       wi.textContent = 'Ports 1 à 4 : réseau local (sans fil simulé par des câbles). Port W : vers l\'opérateur.';
       propsEl.appendChild(wi);
       field(propsEl, 'Réseau local : adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }), 'Passerelle des appareils du réseau local.');
+      field(propsEl, 'Réseau local : masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
       field(propsEl, 'Côté opérateur : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
+      field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else if (n.type === 'router') {
       n.ifaces.forEach(function (f, i) {
         field(propsEl, 'Interface ' + (i + 1) + ' : adresse IP', f.ip, ipChange(function (v) { f.ip = v; }));
+        field(propsEl, 'Interface ' + (i + 1) + ' : masque', maskOf(f), maskChange(function (v) { f.mask = v; }));
         var wrap = document.createElement('div'); wrap.className = 'field check';
         var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid); cb.checked = !!f.wan;
         cb.addEventListener('change', function () { f.wan = cb.checked; draw(); });
@@ -604,7 +625,8 @@
       bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else {
-      field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }), 'Masque 255.255.255.0 (réseau /24), comme dans l\'activité.');
+      field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
+      field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }), 'Les machines ayant les mêmes nombres (selon le masque) sont sur le même réseau. 255.255.255.0 : réseau /24.');
       field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
       if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
       field(propsEl, 'Serveur DNS', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur qui traduit un nom en adresse IP.');
@@ -732,6 +754,7 @@
 
   function ipconfig(h) {
     printTo(h.id, 'Adresse IP : ' + (h.ifaces[0].ip || '(non configurée)'));
+    printTo(h.id, 'Masque : ' + maskOf(h.ifaces[0]));
     printTo(h.id, 'Passerelle : ' + (h.gw || '(aucune)'));
     printTo(h.id, 'Serveur DNS : ' + (h.dns || '(aucun)'));
   }
