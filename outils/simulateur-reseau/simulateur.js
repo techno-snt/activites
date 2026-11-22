@@ -374,18 +374,6 @@
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
       g.addEventListener('click', function () { if (!skipClick && mode !== 'select') clickNode(n); });
-      // Double-clic : passe en mode Sélection et ouvre la configuration de l'appareil
-      g.addEventListener('dblclick', function (e) {
-        if (isSim()) return;
-        e.preventDefault();
-        if (cableDrag) return;
-        pending = null;
-        mode = 'select';
-        selected = n.id;
-        setStatus('Configurez ' + n.label + ' à droite. Cliquez l\'outil Câble pour reprendre le câblage.');
-        syncModeButtons();
-        refresh();
-      });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
@@ -871,13 +859,21 @@
   svg.addEventListener('pointerup', endPan);
   svg.addEventListener('pointercancel', function () { pan = null; });
 
+  // Clic droit sur une zone vide du plan : quitte le mode Câble ou Supprimer
+  svg.addEventListener('contextmenu', function (e) {
+    var t = e.target;
+    var onEmpty = t === svg || (t.classList && t.classList.contains('bg'));
+    if (!onEmpty) return;
+    e.preventDefault();
+    if (mode !== 'select' && !isSim()) setMode('select');
+  });
+
   // Clavier : Suppr / Retour arrière supprime l'appareil ciblé, Échap annule un câblage en cours
   document.addEventListener('keydown', function (e) {
     var t = e.target;
     if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     if (e.key === 'Escape' && pending) { pending = null; setStatus('Câblage annulé.'); refresh(); return; }
-    if (e.key === 'Escape' && mode !== 'select' && !isSim()) { setMode('select'); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (e.key === 'Escape' && mode !== 'select' && !isSim()) { setMode('select'); return; }    if (e.key === 'Delete' || e.key === 'Backspace') {
       var id = (t && t.getAttribute && t.getAttribute('data-id')) || selected;
       if (id && N(id)) { e.preventDefault(); removeNode(id); }
     }
