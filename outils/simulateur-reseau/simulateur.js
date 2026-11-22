@@ -53,6 +53,31 @@
     if (n.type === 'router') return n.ifaces.map(function (f, k) { return { n: id, i: k }; });
     return [{ n: id, i: 0 }];
   }
+  // Liens Wi-Fi : une machine en « sans fil » se connecte au routeur Wi-Fi dont le nom (SSID) est le sien.
+  // Ces liens sont recalculés à chaque rafraîchissement, donc ils ne sont ni sauvegardés ni modifiables.
+  function syncWifi() {
+    LINKS = LINKS.filter(function (l) { return !l.wireless; });
+    NODES.forEach(function (w) {
+      if (w.kind !== 'wifi' || !w.lan) return;
+      NODES.forEach(function (h) {
+        if (h.hidden || h.type === 'switch' || h.type === 'router') return;
+        var f = h.ifaces && h.ifaces[0];
+        if (!f || !f.wifi || !f.ssid || f.ssid !== w.ssid) return;
+        if (linkAt(h.id, 0)) return;                     // déjà branchée par câble
+        if (LINKS.some(function (l) { return l.wireless && l.a.n === h.id; })) return;
+        // Ports 7 (interne) et 0 à 3 (câbles) exclus : les appareils sans fil prennent les ports libres à partir du 7e
+        for (var i = SWITCH_PORTS - 2; i >= 0; i--) {
+          if (!linkAt(w.lan, i)) { LINKS.push({ a: { n: h.id, i: 0 }, b: { n: w.lan, i: i }, wireless: true }); break; }
+        }
+      });
+    });
+  }
+  // Routeur Wi-Fi auquel une machine est connectée (ou null)
+  function wifiOf(h) {
+    var l = LINKS.find(function (x) { return x.wireless && x.a.n === h.id; });
+    if (!l) return null;
+    return NODES.find(function (r) { return r.lan === l.b.n; }) || null;
+  }
   function freeTarget(id) {
     var ts = targetsOf(id);
     for (var k = 0; k < ts.length; k++) if (!linkAt(ts[k].n, ts[k].i)) return ts[k];
@@ -293,6 +318,7 @@
     if (k.type === 'router') {
       n.ifaces = [{ ip: '' }, { ip: '', wan: true }]; n.defGw = '';
       if (k.wifi) {
+        n.ssid = 'Wifi-SNT';
         // Le réseau local du routeur Wi-Fi est un petit switch intégré (caché) relié à son interface 1
         var s = { id: 'N' + (++seq), kind: 'switch', type: 'switch', label: 'Commutateur Wi-Fi', x: x, y: y, hidden: true };
         NODES.push(s);
@@ -405,6 +431,7 @@
       var a = N(l.a.n), b = N(l.b.n);
       if (!a || !b) return;
       if (a.lan === b.id || b.lan === a.id) return; // liaison interne d'un routeur Wi-Fi, invisible
+      if (l.wireless) { el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'cable wifi' }, layerLinks); return; }
       var line = el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'cable' }, layerLinks);
       line.addEventListener('click', function (e) {
         if (mode === 'delete' && !isSim()) { e.stopPropagation(); removeLink(l); }
@@ -691,6 +718,7 @@
   function draw() { buildNetColours(); drawBlocks(); drawLinks(); drawNodes(); }
 
   function refresh() {
+    syncWifi();
     draw();
     renderProps();
     refreshHosts();
@@ -993,6 +1021,7 @@
       var wi = document.createElement('p'); wi.className = 'help';
       wi.textContent = 'Ports 1 à 4 : réseau local (sans fil simulé par des câbles). Port W : vers l\'opérateur.';
       propsEl.appendChild(wi);
+      field(propsEl, 'Nom du réseau Wi-Fi (SSID)', n.ssid, function (inp) { n.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); }, 'Les machines en « sans fil » qui saisissent ce même nom se connectent à ce routeur.');
       field(propsEl, 'Réseau local : adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }), 'Passerelle des appareils du réseau local.');
       field(propsEl, 'Réseau local : masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
       field(propsEl, 'Côté opérateur : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
@@ -1019,6 +1048,23 @@
     } else if (n.type === 'server') {
       renderServerProps(n);
     } else {
+      var f0 = n.ifaces[0];
+      var wwrap = document.createElement('div'); wwrap.className = 'field check';
+      var wcb = document.createElement('input'); wcb.type = 'checkbox'; wcb.id = 'f' + (++fid); wcb.checked = !!f0.wifi;
+      wcb.addEventListener('change', function () {
+        f0.wifi = wcb.checked;
+        setStatus(wcb.checked ? 'Connexion sans fil : saisissez le nom du réseau.' : 'Connexion filaire.');
+        draw(); refresh();
+      });
+      var wcl = document.createElement('label'); wcl.htmlFor = wcb.id; wcl.textContent = 'Connexion sans fil (Wi-Fi)';
+      wwrap.appendChild(wcb); wwrap.appendChild(wcl); propsEl.appendChild(wwrap);
+      if (f0.wifi) {
+        field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); });
+        var w0 = wifiOf(n);
+        var st = document.createElement('p'); st.className = 'help';
+        st.textContent = w0 ? 'Connecté au routeur Wi-Fi « ' + w0.label + ' ».' : 'Aucun routeur Wi-Fi ne porte ce nom : pas de connexion.';
+        propsEl.appendChild(st);
+      }
       field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
       field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }), 'Les machines ayant les mêmes nombres (selon le masque) sont sur le même réseau. 255.255.255.0 : réseau /24.');
       if (isHostType(n)) {
@@ -1400,7 +1446,7 @@
     refresh();
   }
   function exportPlan() {
-    var data = JSON.stringify({ version: 3, nodes: NODES, links: LINKS, blocks: BLOCKS }, null, 2);
+    var data = JSON.stringify({ version: 3, nodes: NODES, links: LINKS.filter(function (l) { return !l.wireless; }), blocks: BLOCKS }, null, 2);
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
     a.download = 'simulateur-reseau.json';
@@ -1413,7 +1459,7 @@
       try {
         var data = JSON.parse(reader.result);
         if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('format');
-        NODES = data.nodes; LINKS = data.links; BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
+        NODES = data.nodes; LINKS = data.links.filter(function (l) { return !l.wireless; }); BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
         selBlock = null; OUT = {}; selected = null; pending = null;
         // Les nouveaux identifiants ne doivent pas reprendre ceux du plan importé
         NODES.concat(BLOCKS).forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });

@@ -333,3 +333,5 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .dock-item svg { width: 18px; height: 18px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dwin-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; z-index: 4; touch-action: none; background: linear-gradient(135deg, transparent 0 50%, #94a3b8 50% 56%, transparent 56% 70%, #94a3b8 70% 76%, transparent 76%); }
 .dwin.desk .dwin-grip { background: linear-gradient(135deg, transparent 0 50%, rgba(255,255,255,.7) 50% 56%, transparent 56% 70%, rgba(255,255,255,.7) 70% 76%, transparent 76%); }
+/* Liaison sans fil : trait pointillé, non cliquable (elle suit le SSID) */
+.cable.wifi { stroke: #0891b2; stroke-dasharray: 2 9; stroke-width: 5; pointer-events: none; }
