@@ -374,6 +374,18 @@
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
       g.addEventListener('click', function () { if (!skipClick && mode !== 'select') clickNode(n); });
+      // Double-clic : passe en mode Sélection et ouvre la configuration de l'appareil
+      g.addEventListener('dblclick', function (e) {
+        if (isSim()) return;
+        e.preventDefault();
+        if (cableDrag) return;
+        pending = null;
+        mode = 'select';
+        selected = n.id;
+        setStatus('Configurez ' + n.label + ' à droite. Cliquez l\'outil Câble pour reprendre le câblage.');
+        syncModeButtons();
+        refresh();
+      });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
@@ -530,7 +542,7 @@
   function setMode(m) {
     if (isSim() && m !== 'select') { setStatus('Plan verrouillé en mode simulation.'); return; }
     mode = m; pending = null;
-    setStatus(m === 'cable' ? 'Cliquez un port, puis un port de l\'autre appareil pour les relier.' : m === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer.' : 'Cliquez un appareil pour le configurer.');
+    setStatus(m === 'cable' ? 'Glissez d\'un port à un autre pour relier. Échap ou l\'outil Sélection pour sortir.' : m === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer. Échap pour sortir.' : 'Cliquez un appareil pour le configurer.');
     refresh();
   }
 
@@ -864,6 +876,7 @@
     var t = e.target;
     if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     if (e.key === 'Escape' && pending) { pending = null; setStatus('Câblage annulé.'); refresh(); return; }
+    if (e.key === 'Escape' && mode !== 'select' && !isSim()) { setMode('select'); return; }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       var id = (t && t.getAttribute && t.getAttribute('data-id')) || selected;
       if (id && N(id)) { e.preventDefault(); removeNode(id); }
@@ -939,7 +952,11 @@
     refresh();
   });
   document.querySelectorAll('[data-mode]').forEach(function (b) {
-    b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });
+    b.addEventListener('click', function () {
+      // Recliquer l'outil déjà actif revient au mode Sélection
+      var m = b.getAttribute('data-mode');
+      setMode(m === mode ? 'select' : m);
+    });
   });
   $('btnScenario').addEventListener('click', loadScenario);
   $('btnNew').addEventListener('click', clearAll);
