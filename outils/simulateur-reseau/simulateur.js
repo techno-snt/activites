@@ -1167,6 +1167,46 @@
     decorateWin(win, w, box);
     return win;
   }
+  // Fenêtre du navigateur web dans le bureau
+  function buildNav(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app nav'; win.setAttribute('aria-label', 'Navigateur web de ' + h.label);
+    win.appendChild(winHead(w, 'Navigateur web · ' + h.label, false));
+    var body = document.createElement('div'); body.className = 'dwin-body nav-body';
+    var bar = document.createElement('form'); bar.className = 'nav-bar';
+    var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
+    inp.placeholder = 'www.monsite-snt.fr'; inp.value = w.url || ''; inp.setAttribute('aria-label', 'Adresse à ouvrir');
+    inp.addEventListener('input', function () { w.url = inp.value; });
+    var go = document.createElement('button'); go.type = 'submit'; go.title = 'Ouvrir cette adresse'; go.setAttribute('aria-label', 'Ouvrir');
+    go.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>';
+    bar.addEventListener('submit', function (e) { e.preventDefault(); browse(w, inp.value); });
+    bar.appendChild(inp); bar.appendChild(go);
+    var view = document.createElement('div'); view.className = 'nav-view';
+    var st = w.state;
+    if (!st) {
+      var hint = document.createElement('p'); hint.className = 'nav-hint';
+      hint.textContent = 'Saisissez une adresse, par exemple www.monsite-snt.fr. Le navigateur demande d\'abord l\'adresse IP au serveur DNS, puis envoie la requête au serveur web.';
+      view.appendChild(hint);
+    } else if (st.page) {
+      var page = document.createElement('div'); page.className = 'nav-page';
+      var t = document.createElement('h3'); t.textContent = st.page.title;
+      var p1 = document.createElement('p'); p1.textContent = 'Page d\'accueil de ' + st.page.name + ' (adresse IP ' + st.page.ip + ').';
+      page.appendChild(t); page.appendChild(p1);
+      if (st.page.https) { var p2 = document.createElement('p'); p2.className = 'nav-note'; p2.textContent = 'Connexion HTTPS : l\'échange est chiffré (chiffrement non simulé ici).'; page.appendChild(p2); }
+      view.appendChild(page);
+    } else if (st.error) {
+      var err = document.createElement('div'); err.className = 'nav-error';
+      var eh = document.createElement('h3'); eh.textContent = st.status;
+      var ep = document.createElement('p'); ep.textContent = st.error;
+      err.appendChild(eh); err.appendChild(ep); view.appendChild(err);
+    }
+    var sbar = document.createElement('p'); sbar.className = 'nav-status'; sbar.setAttribute('role', 'status');
+    sbar.textContent = st && st.status ? st.status : '';
+    body.appendChild(bar); body.appendChild(view); body.appendChild(sbar);
+    win.appendChild(body);
+    decorateWin(win, w, box);
+    return win;
+  }
   // Application « Ligne de commande » dans le bureau d'une machine
   function buildTerm(w, box) {
     var h = N(w.host);
@@ -1220,6 +1260,7 @@
         if (a.id === 'install') openWin('install', h.id);
         else if (a.id === 'cmd') openWin('term', h.id);
         else if (a.id === 'web' || a.id === 'dns' || a.id === 'dhcp') openWin('svc-' + a.id, h.id);
+        else if (a.id === 'nav') openWin('nav', h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
       grid.appendChild(b);
@@ -1239,7 +1280,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
@@ -1414,6 +1455,36 @@
     } else {
       printTo(h.id, 'Connexion établie, mais ' + r.ip + ' ne répond pas comme un serveur web.');
     }
+  }
+
+  // Navigateur web : même chemin que la commande web (DNS, puis requête HTTP), avec animation
+  var navSeq = 0;
+  function navFinish(w, tok, st) { if (w.tok !== tok) return; w.state = st; renderDesk(); }
+  async function browse(w, raw) {
+    var h = N(w.host);
+    var text = raw.trim();
+    var https = /^https:\/\//i.test(text);
+    var url = text.replace(/^https?:\/\//i, '');
+    var slash = url.indexOf('/');
+    var name = slash < 0 ? url : url.slice(0, slash);
+    var path = slash < 0 ? '/' : url.slice(slash);
+    var tok = ++navSeq;
+    w.tok = tok; w.url = text;
+    if (!name) return navFinish(w, tok, { status: 'Adresse vide.', error: 'Saisissez une adresse, par exemple www.monsite-snt.fr' });
+    w.state = { status: 'Recherche de l\'adresse de ' + name + '…' };
+    renderDesk();
+    var r = resolveCore(h.id, name);
+    if (!r.ok) return navFinish(w, tok, { status: 'Site introuvable', error: r.msg });
+    w.state = { status: 'Requête vers ' + r.ip + '…' };
+    renderDesk();
+    var p = pingCore(h.id, r.ip);
+    await flyLegs(p.legs);
+    if (!p.ok) return navFinish(w, tok, { status: 'Pas de réponse', error: 'Pas de réponse du serveur : ' + p.msg });
+    var srv = N(p.dstNode);
+    if (!(srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })))
+      return navFinish(w, tok, { status: 'Connexion refusée', error: 'Ce serveur n\'a pas de serveur web installé.' });
+    if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
+    navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https } });
   }
 
   function ipconfig(h) {
