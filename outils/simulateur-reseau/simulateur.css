@@ -279,14 +279,14 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .sw-nocable { background: #fff1f2; border-color: #dc2626; }
 .sw-todo { background: #fef3c7; border-color: #d97706; }
 
-/* Zone des bureaux (simulation) : séparée du plan */
-.desk-zone { flex: 0 0 auto; display: flex; gap: 12px; overflow-x: auto; padding: 10px 12px; background: #eaf0fa; border-top: 1px solid var(--line); max-height: 300px; }
+/* Bureaux (simulation) : fenêtres flottantes au-dessus du plan, comme dans Filius */
+.desk-zone { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
 .desk-zone[hidden] { display: none; }
-.dwin { flex: 0 0 320px; background: #ffffff; border: 1px solid #94a3b8; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(15, 27, 61, .18); display: flex; flex-direction: column; }
-.dwin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #1e3a8a; color: #ffffff; padding: 6px 10px; font-size: .85rem; font-weight: 700; }
+.dwin { position: absolute; width: 300px; pointer-events: auto; background: #ffffff; border: 1px solid #94a3b8; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 18px rgba(15, 27, 61, .25); display: flex; flex-direction: column; }
+.dwin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #1e3a8a; color: #ffffff; padding: 6px 10px; font-size: .85rem; font-weight: 700; cursor: move; user-select: none; touch-action: none; }
 .dwin-close { background: none; border: 0; color: #ffffff; font-size: 1.1rem; cursor: pointer; padding: 0 4px; border-radius: 6px; }
 .dwin-close:focus-visible { outline: 2px solid #ffffff; }
-.dwin-body { padding: 10px; overflow: auto; max-height: 240px; }
+.dwin-body { padding: 10px; overflow: auto; max-height: 300px; }
 .desk-icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .desk-icon { display: flex; flex-direction: column; align-items: center; gap: 4px; background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; cursor: pointer; font: inherit; font-size: .74rem; color: var(--ink); }
 .desk-icon:hover { border-color: var(--blue); }
@@ -305,3 +305,31 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .sw-cols .arrows button { min-height: 36px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; cursor: pointer; font-size: 1rem; }
 .dwin-apply { margin-top: 10px; width: 100%; min-height: 40px; border: 0; border-radius: 10px; background: var(--blue); color: #ffffff; font-weight: 700; cursor: pointer; }
 .dwin-note { font-size: .8rem; color: var(--muted); margin: 8px 0 0; max-width: none; }
+
+/* Bureau d'ordinateur (simulation) : écran presque plein, réductible */
+.dwin.desk { width: min(780px, calc(100% - 24px)); height: min(520px, calc(100% - 24px)); border-radius: 10px; }
+.dwin-ctl { display: flex; gap: 2px; }
+.dwin-btn { background: none; border: 0; color: #ffffff; cursor: pointer; padding: 2px 6px; border-radius: 6px; display: grid; place-items: center; }
+.dwin-btn:hover { background: rgba(255, 255, 255, .18); }
+.dwin-btn:focus-visible { outline: 2px solid #ffffff; }
+.dwin-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.desk-screen { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; background: radial-gradient(circle at 18% 12%, #93c5fd 0%, #2563eb 48%, #1e1b4b 100%); }
+.desk-screen .desk-icons { position: absolute; left: 14px; top: 14px; right: 14px; bottom: 56px; display: grid; grid-template-columns: repeat(auto-fill, 104px); grid-auto-rows: 96px; align-content: start; gap: 6px; }
+.desk-screen .desk-icon { background: transparent; border: 1px solid transparent; color: #ffffff; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); font-size: .78rem; padding: 6px 4px; }
+.desk-screen .desk-icon:hover { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .35); }
+.desk-screen .desk-icon .tile { width: 44px; height: 44px; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
+.desk-note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; color: #ffffff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); font-size: .85rem; text-align: center; max-width: 80%; }
+.taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 10px; background: rgba(15, 23, 42, .84); color: #ffffff; font-size: .8rem; }
+.taskbar .start { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: #2563eb; }
+.taskbar .start svg, .taskbar .tray svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.taskbar .start svg { fill: #ffffff; stroke: none; }
+.taskbar .tray { display: inline-grid; place-items: center; padding: 4px; border-radius: 6px; }
+.taskbar .tray svg { width: 18px; height: 18px; }
+.taskbar span:last-child { margin-left: auto; font-family: var(--mono); }
+/* Fenêtres réduites : barre en haut à droite du plan */
+.desk-dock { position: absolute; right: 12px; top: 12px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; pointer-events: auto; max-width: 60%; }
+.dock-item { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #ffffff; border-radius: 10px; padding: 6px 10px; font: inherit; font-size: .8rem; color: var(--ink); cursor: pointer; box-shadow: 0 2px 8px rgba(15, 27, 61, .14); }
+.dock-item:hover { border-color: var(--blue); }
+.dock-item svg { width: 18px; height: 18px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dwin-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; z-index: 4; touch-action: none; background: linear-gradient(135deg, transparent 0 50%, #94a3b8 50% 56%, transparent 56% 70%, #94a3b8 70% 76%, transparent 76%); }
+.dwin.desk .dwin-grip { background: linear-gradient(135deg, transparent 0 50%, rgba(255,255,255,.7) 50% 56%, transparent 56% 70%, rgba(255,255,255,.7) 70% 76%, transparent 76%); }

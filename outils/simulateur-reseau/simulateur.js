@@ -221,7 +221,45 @@
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('canvas'), layerLinks = $('layerLinks'), layerNodes = $('layerNodes'), layerPk = $('layerPk');
   var statusEl = $('status'), propsEl = $('props'), termHost = $('termHost'), termOut = $('termOut'), termForm = $('termForm'), cmdInput = $('cmd');
-  var WINS = [], wseq = 0, deskZone = $('deskZone');
+  var WINS = [], wseq = 0, zseq = 10, deskZone = $('deskZone');
+  // Fenêtre flottante : position mémorisée, déplacement par l'en-tête, passage au premier plan au clic
+  function decorateWin(win, w) {
+    if (w.x === undefined) { var k = WINS.indexOf(w) % 6; w.x = w.type === 'desk' ? 12 : 16 + k * 26; w.y = w.type === 'desk' ? 12 : 16 + k * 26; }
+    win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
+    if (w.w) { win.style.width = w.w + 'px'; win.style.height = w.h + 'px'; }
+    // Poignée en bas à droite : redimensionner la fenêtre pour suivre les paquets sur le plan
+    var grip = document.createElement('div'); grip.className = 'dwin-grip'; grip.title = 'Redimensionner';
+    win.appendChild(grip);
+    grip.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var sx = e.clientX, sy = e.clientY, ow = win.offsetWidth, oh = win.offsetHeight;
+      grip.setPointerCapture(e.pointerId);
+      var mv = function (ev) {
+        var maxW = deskZone.clientWidth - w.x - 4, maxH = deskZone.clientHeight - w.y - 4;
+        w.w = Math.max(320, Math.min(maxW, ow + ev.clientX - sx));
+        w.h = Math.max(220, Math.min(maxH, oh + ev.clientY - sy));
+        win.style.width = w.w + 'px'; win.style.height = w.h + 'px';
+      };
+      var up = function () { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); };
+      grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up);
+    });
+    if (!w.z) w.z = ++zseq;
+    win.style.zIndex = w.z;
+    var raise = function () { if (w.z !== zseq) { w.z = ++zseq; win.style.zIndex = w.z; } };
+    win.addEventListener('pointerdown', raise);
+    var head = win.querySelector('.dwin-head');
+    head.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button')) return;
+      var sx = e.clientX, sy = e.clientY, ox = w.x, oy = w.y;
+      head.setPointerCapture(e.pointerId);
+      var mv = function (ev) {
+        w.x = Math.max(0, ox + ev.clientX - sx); w.y = Math.max(0, oy + ev.clientY - sy);
+        win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
+      };
+      var up = function () { head.removeEventListener('pointermove', mv); head.removeEventListener('pointerup', up); };
+      head.addEventListener('pointermove', mv); head.addEventListener('pointerup', up);
+    });
+  }
   var mode = 'select', selected = null, pending = null, drag = null, busy = false, OUT = {};
   var BLOCKS = [], selBlock = null, bdrag = null, rdrag = null, layerBlocks = $('layerBlocks'), layerHandles = $('layerHandles');
   var fid = 0;
@@ -1046,6 +1084,7 @@
     var h = N(hostId);
     if (!h || h.type === 'switch' || h.type === 'router') return;
     var ex = WINS.find(function (w) { return w.type === type && w.host === hostId; });
+    if (ex) ex.min = false;
     if (!ex) {
       ex = { id: ++wseq, type: type, host: hostId, pending: (h.software || []).slice(), sel: null };
       WINS.push(ex);
@@ -1060,15 +1099,30 @@
     $('btnTerm').setAttribute('aria-pressed', 'true');
     cmdInput.focus();
   }
+  var ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+  var ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  var ICON_SCREEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg>';
+  // En-tête de fenêtre : titre, réduire (vers la barre du bas), fermer
+  function winHead(w, title) {
+    var head = document.createElement('div'); head.className = 'dwin-head';
+    var t = document.createElement('span'); t.textContent = title;
+    var ctl = document.createElement('div'); ctl.className = 'dwin-ctl';
+    var min = document.createElement('button'); min.type = 'button'; min.className = 'dwin-btn'; min.innerHTML = ICON_MIN;
+    min.setAttribute('aria-label', 'Réduire'); min.title = 'Réduire';
+    min.addEventListener('click', function () { w.min = true; renderDesk(); });
+    var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-btn'; close.innerHTML = ICON_CLOSE;
+    close.setAttribute('aria-label', 'Fermer'); close.title = 'Fermer';
+    close.addEventListener('click', function () { closeWin(w.id); });
+    ctl.appendChild(min); ctl.appendChild(close);
+    head.appendChild(t); head.appendChild(ctl);
+    return head;
+  }
+  // Bureau d'un ordinateur : fond, icônes, barre des tâches (comme un vrai écran)
   function buildDesk(w) {
     var h = N(w.host);
-    var win = document.createElement('section'); win.className = 'dwin'; win.setAttribute('aria-label', 'Bureau de ' + h.label);
-    var head = document.createElement('div'); head.className = 'dwin-head';
-    var title = document.createElement('span'); title.textContent = 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')';
-    var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-close'; close.textContent = '✕';
-    close.setAttribute('aria-label', 'Fermer le bureau'); close.addEventListener('click', function () { closeWin(w.id); });
-    head.appendChild(title); head.appendChild(close); win.appendChild(head);
-    var body = document.createElement('div'); body.className = 'dwin-body';
+    var win = document.createElement('section'); win.className = 'dwin desk'; win.setAttribute('aria-label', 'Bureau de ' + h.label);
+    win.appendChild(winHead(w, 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')'));
+    var screen = document.createElement('div'); screen.className = 'desk-screen';
     var grid = document.createElement('div'); grid.className = 'desk-icons';
     var apps = [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }));
     apps.forEach(function (a) {
@@ -1083,23 +1137,26 @@
       });
       grid.appendChild(b);
     });
-    body.appendChild(grid);
+    screen.appendChild(grid);
     if (!(h.software || []).length) {
-      var note = document.createElement('p'); note.className = 'dwin-note';
+      var note = document.createElement('p'); note.className = 'desk-note';
       note.textContent = 'Aucun logiciel installé. Ouvrez « Installation des logiciels » pour en ajouter.';
-      body.appendChild(note);
+      screen.appendChild(note);
     }
-    win.appendChild(body);
+    var bar = document.createElement('div'); bar.className = 'taskbar';
+    var start = document.createElement('span'); start.className = 'start'; start.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>';
+    var net = document.createElement('span'); net.className = 'tray'; net.innerHTML = ICON_SCREEN;
+    var ip = document.createElement('span'); ip.textContent = h.ifaces[0].ip || 'sans IP';
+    bar.appendChild(start); bar.appendChild(net); bar.appendChild(ip);
+    screen.appendChild(bar);
+    win.appendChild(screen);
+    decorateWin(win, w);
     return win;
   }
   function buildInstall(w) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin'; win.setAttribute('aria-label', 'Installation des logiciels de ' + h.label);
-    var head = document.createElement('div'); head.className = 'dwin-head';
-    var title = document.createElement('span'); title.textContent = 'Installation des logiciels · ' + h.label;
-    var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-close'; close.textContent = '✕';
-    close.setAttribute('aria-label', 'Fermer'); close.addEventListener('click', function () { closeWin(w.id); });
-    head.appendChild(title); head.appendChild(close); win.appendChild(head);
+    win.appendChild(winHead(w, 'Installation des logiciels · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body';
     var cols = document.createElement('div'); cols.className = 'sw-cols';
     function list(heading, ids, side) {
@@ -1144,6 +1201,7 @@
     });
     body.appendChild(apply);
     win.appendChild(body);
+    decorateWin(win, w);
     return win;
   }
   function renderDesk() {
@@ -1151,7 +1209,22 @@
     deskZone.textContent = '';
     deskZone.hidden = !WINS.length || !isSim();
     if (deskZone.hidden) return;
-    WINS.forEach(function (w) { deskZone.appendChild(w.type === 'desk' ? buildDesk(w) : buildInstall(w)); });
+    WINS.filter(function (w) { return !w.min; }).forEach(function (w) { deskZone.appendChild(w.type === 'desk' ? buildDesk(w) : buildInstall(w)); });
+    var reduced = WINS.filter(function (w) { return w.min; });
+    if (reduced.length) {
+      var dock = document.createElement('div'); dock.className = 'desk-dock'; dock.setAttribute('aria-label', 'Fenêtres réduites');
+      reduced.forEach(function (w) {
+        var h = N(w.host);
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'dock-item';
+        b.innerHTML = ICON_SCREEN;
+        var l = document.createElement('span'); l.textContent = (w.type === 'desk' ? 'Bureau · ' : 'Installation · ') + h.label;
+        b.appendChild(l);
+        b.title = 'Restaurer';
+        b.addEventListener('click', function () { w.min = false; w.z = ++zseq; renderDesk(); });
+        dock.appendChild(b);
+      });
+      deskZone.appendChild(dock);
+    }
   }
 
   /* ----- Terminal ----- */
