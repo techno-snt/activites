@@ -374,3 +374,11 @@ body.sim .term { display: none !important; }
 .edit-save { align-self: flex-end; min-height: 36px; border: 0; border-radius: 8px; background: var(--blue); color: #ffffff; font-weight: 700; padding: 0 14px; cursor: pointer; }
 .nav-url { font-family: var(--mono); font-size: .75rem !important; color: var(--muted); margin-bottom: 6px !important; }
 .nav-frame { width: 100%; height: 150px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; }
+
+/* Échanges de données (bureau) */
+.desk-screen > .dwin.trames-app { width: 560px; }
+.trames-body { max-height: 220px; overflow: auto; padding: 0; }
+.trames-table td:last-child { white-space: normal; min-width: 200px; }
+.trames-table { font-size: .72rem; margin: 0; }
+.trames-table th, .trames-table td { white-space: nowrap; }
+.trames-empty { color: var(--muted); font-style: italic; white-space: normal !important; }

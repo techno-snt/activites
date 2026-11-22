@@ -152,16 +152,35 @@
     return { ok: false, msg: 'Trop de sauts : boucle de routage.', hops: hops };
   }
 
-  function pingCore(srcId, dstIP) {
+  // Journal des trames par machine : couche, source, destination, information (affiché dans « Échanges de données »)
+  var TRAMES = {}, tseq = 0;
+  function addTrame(hostId, layer, src, dst, info) {
+    var list = TRAMES[hostId] = TRAMES[hostId] || [];
+    list.push({ n: ++tseq, layer: layer, src: src, dst: dst, info: info });
+    if (list.length > 200) list.shift();
+    updateTrameApps(hostId);
+  }
+  // Une trame traverse les machines de son chemin : émission, transferts par les routeurs, réception
+  function recordPath(hops, src, dst, info, sens) {
+    hops.forEach(function (id, k) {
+      var role = k === 0 ? 'Émission' : (k === hops.length - 1 ? 'Réception' : 'Transfert');
+      addTrame(id, 'Internet', src, dst, sens + ' · ' + role + ' · TTL ' + (64 - k));
+      if (k === 0 || k === hops.length - 1) addTrame(id, 'Application', src, dst, sens === 'Requête' ? info : 'Réponse : ' + info);
+    });
+  }
+  function pingCore(srcId, dstIP, info) {
     var src = N(srcId);
     var srcIP = src.ifaces[0].ip;
     var pid = ++pidSeq;
     if (!srcIP) return { ok: false, msg: src.label + ' : pas d\'adresse IP configurée.', legs: [] };
     var r1 = route(srcId, srcIP, dstIP, pid);
+    var what = info || 'ICMP écho (ping)';
+    recordPath(r1.hops, srcIP, dstIP, what, 'Requête');
     var legs = [r1.hops];
     if (!r1.ok) return { ok: false, msg: r1.msg, legs: legs };
     var r2 = route(r1.dstNode, dstIP, r1.src, pid);
     legs.push(r2.hops);
+    recordPath(r2.hops, dstIP, srcIP, what, 'Réponse');
     if (!r2.ok) return { ok: false, msg: 'La requête arrive, mais la réponse ne revient pas : ' + r2.msg, legs: legs };
     return { ok: true, msg: 'Réponse de ' + dstIP, legs: legs, dstNode: r1.dstNode };
   }
@@ -172,7 +191,7 @@
     if (!h.dns) return { ok: false, msg: 'Nom « ' + name + ' » inconnu : aucun serveur DNS configuré sur ' + h.label + '.' };
     var dnsNode = NODES.find(function (n) { return n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc; });
     if (!dnsNode) return { ok: false, msg: 'Serveur DNS ' + h.dns + ' introuvable.' };
-    var q = pingCore(hostId, h.dns);
+    var q = pingCore(hostId, h.dns, 'Requête DNS : ' + name);
     if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable. ' + q.msg };
     if (!dnsNode.records || !(name in dnsNode.records)) return { ok: false, msg: 'Le serveur DNS ne connaît pas « ' + name + ' ».' };
     return { ok: true, ip: dnsNode.records[name] };
@@ -1188,6 +1207,40 @@
     decorateWin(win, w, box);
     return win;
   }
+  function trameRows(tbody, hostId) {
+    tbody.textContent = '';
+    var list = (TRAMES[hostId] || []).slice().reverse().slice(0, 80);
+    if (!list.length) {
+      var tr0 = tbody.insertRow(); var td0 = tr0.insertCell(); td0.colSpan = 5; td0.className = 'trames-empty';
+      td0.textContent = 'Aucune trame pour l\'instant. Lancez un ping, une page web ou un traceroute.';
+      return;
+    }
+    list.forEach(function (t) {
+      var tr = tbody.insertRow();
+      [t.n, t.layer, t.src, t.dst, t.info].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+    });
+  }
+  // Fenêtre « Échanges de données » : les trames vues par cette machine, couche par couche
+  function buildTrames(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app trames-app'; win.setAttribute('data-host', h.id);
+    win.setAttribute('aria-label', 'Échanges de données de ' + h.label);
+    win.appendChild(winHead(w, 'Échanges de données · ' + h.label, false));
+    var body = document.createElement('div'); body.className = 'dwin-body trames-body';
+    var tbl = document.createElement('table'); tbl.className = 'rtable trames-table';
+    var head = tbl.createTHead().insertRow();
+    ['N°', 'Couche', 'Source', 'Destination', 'Information'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
+    trameRows(tbl.createTBody(), h.id);
+    body.appendChild(tbl); win.appendChild(body);
+    decorateWin(win, w, box);
+    return win;
+  }
+  function updateTrameApps(hostId) {
+    if (!deskZone) return;
+    deskZone.querySelectorAll('.trames-app').forEach(function (t) {
+      if (t.getAttribute('data-host') === hostId) trameRows(t.querySelector('tbody'), hostId);
+    });
+  }
   // Fenêtre du navigateur web dans le bureau
   function buildNav(w, box) {
     var h = N(w.host);
@@ -1273,7 +1326,7 @@
     win.appendChild(winHead(w, 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')'));
     var screen = document.createElement('div'); screen.className = 'desk-screen';
     var grid = document.createElement('div'); grid.className = 'desk-icons';
-    var apps = [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }));
+    var apps = [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }, { id: 'trames', label: 'Échanges de données', tile: 'Tr', cls: 'net' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }));
     apps.forEach(function (a) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'desk-icon';
       var t = document.createElement('span'); t.className = 'tile ' + (a.cls || ''); t.textContent = a.tile;
@@ -1285,6 +1338,7 @@
         else if (a.id === 'web' || a.id === 'dns' || a.id === 'dhcp') openWin('svc-' + a.id, h.id);
         else if (a.id === 'nav') openWin('nav', h.id);
         else if (a.id === 'edit') openWin('edit', h.id);
+        else if (a.id === 'trames') openWin('trames', h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
       grid.appendChild(b);
@@ -1304,7 +1358,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'trames' ? buildTrames(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
@@ -1470,7 +1524,7 @@
   async function cmdWeb(h, target) {
     var r = resolveCore(h.id, target);
     if (!r.ok) { printTo(h.id, r.msg); return; }
-    var p = pingCore(h.id, r.ip);
+    var p = pingCore(h.id, r.ip, 'Requête HTTP GET /');
     await flyLegs(p.legs);
     if (!p.ok) { printTo(h.id, 'Pas de réponse du serveur : ' + p.msg); return; }
     var srv = N(p.dstNode);
@@ -1501,7 +1555,7 @@
     if (!r.ok) return navFinish(w, tok, { status: 'Site introuvable', error: r.msg });
     w.state = { status: 'Requête vers ' + r.ip + '…' };
     renderDesk();
-    var p = pingCore(h.id, r.ip);
+    var p = pingCore(h.id, r.ip, 'Requête HTTP GET ' + path);
     await flyLegs(p.legs);
     if (!p.ok) return navFinish(w, tok, { status: 'Pas de réponse', error: 'Pas de réponse du serveur : ' + p.msg });
     var srv = N(p.dstNode);
@@ -1511,6 +1565,31 @@
     navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https, html: srv.pageHtml || defaultPage(srv) } });
   }
 
+  // Adresse de l'interface d'un appareil par laquelle arrive une trame venant de prevId
+  function ifaceFrom(node, prevId) {
+    if (node.type === 'router') {
+      for (var i = 0; i < node.ifaces.length; i++) {
+        if (node.ifaces[i].ip && linkAt(node.id, i) && segment(node.id, i).some(function (e) { return e.n === prevId; })) return node.ifaces[i].ip;
+      }
+    }
+    return node.ifaces[0].ip;
+  }
+  async function cmdTrace(h, target) {
+    var r = resolveCore(h.id, target);
+    if (!r.ok) { printTo(h.id, r.msg); return; }
+    var pid = ++pidSeq;
+    var rr = route(h.id, h.ifaces[0].ip, r.ip, pid);
+    var hops = rr.hops;
+    await flyLegs([hops]);
+    printTo(h.id, 'traceroute vers ' + target + ' (' + r.ip + ')');
+    for (var k = 1; k < hops.length; k++) {
+      var node = N(hops[k]);
+      var ip = (k === hops.length - 1 && rr.ok) ? r.ip : ifaceFrom(node, hops[k - 1]);
+      printTo(h.id, k + '  ' + ip + '  (' + node.label + ')  ' + latency([hops.slice(0, k + 1)]) + ' ms');
+    }
+    if (!rr.ok) printTo(h.id, 'Arrêt : ' + rr.msg);
+    else printTo(h.id, 'Destination atteinte en ' + (hops.length - 1) + ' saut(s).');
+  }
   function ipconfig(h) {
     printTo(h.id, 'Adresse IP : ' + (h.ifaces[0].ip || '(non configurée)'));
     printTo(h.id, 'Masque : ' + maskOf(h.ifaces[0]));
@@ -1532,6 +1611,7 @@
     if (!cmd) return;
     if (cmd === 'aide') {
       printTo(h.id, 'ping <adresse ou nom> : teste la connexion (4 paquets)');
+      printTo(h.id, 'traceroute <adresse ou nom> : liste les routeurs traversés');
       printTo(h.id, 'web <adresse ou nom> : demande la page du site');
       printTo(h.id, 'ipconfig : affiche la configuration');
       printTo(h.id, 'dhcp : demande une adresse au serveur DHCP du réseau');
@@ -1544,11 +1624,11 @@
       var dr = dhcpRequest(h);
       printTo(h.id, dr.msg);
       draw(); refreshHosts();
-    } else if (cmd === 'ping' || cmd === 'web') {
+    } else if (cmd === 'ping' || cmd === 'web' || cmd === 'traceroute') {
       if (!arg) { printTo(h.id, 'Usage : ' + cmd + ' <adresse ou nom>'); return; }
       if (!h.ifaces[0].ip) { printTo(h.id, h.label + ' : pas d\'adresse IP configurée.'); return; }
       busy = true; cmdInput.disabled = true;
-      try { if (cmd === 'ping') await cmdPing(h, arg); else await cmdWeb(h, arg); }
+      try { if (cmd === 'ping') await cmdPing(h, arg); else if (cmd === 'traceroute') await cmdTrace(h, arg); else await cmdWeb(h, arg); }
       finally { busy = false; cmdInput.disabled = false; cmdInput.focus(); }
     } else {
       printTo(h.id, 'Commande inconnue : ' + cmd + '. Tapez « aide ».');
@@ -1576,14 +1656,14 @@
       { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
       { id: 'WEB', kind: 'pc', type: 'pc', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
     ];
-    LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
+    LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
     var L =function (a, b) { addLink(freeTarget(a), freeTarget(b)); };
     L('PC', 'SW1'); L('NB', 'SW1'); L('SW1', 'BOX'); L('BOX', 'SW2'); L('OP', 'SW2'); L('DNS', 'SW2'); L('OP', 'WEB');
     setStatus('Scénario de la séance chargé. Configurez le PC et le portable, puis testez.');
     refresh();
   }
   function clearAll() {
-    NODES = []; LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
+    NODES = []; LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
     setStatus('Plan vidé.');
     refresh();
   }
