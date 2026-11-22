@@ -232,9 +232,7 @@
     switch: { label: 'Switch', type: 'switch' },
     router: { label: 'Routeur', type: 'router' },
     wifi: { label: 'Routeur Wi-Fi', type: 'router', wifi: true },
-    web: { label: 'Serveur web', type: 'server', web: true },
-    dns: { label: 'Serveur DNS', type: 'server', dnsSvc: true },
-    dhcp: { label: 'Serveur DHCP', type: 'server', dhcpSvc: true }
+    server: { label: 'Serveur', type: 'server' }
   };
 
   function el(tag, attrs, parent) {
@@ -270,10 +268,11 @@
     }
     return n;
   }
+  // Emplacement libre : un appareil occupe environ 160 x 260 px (icône, nom et adresse)
   function freeSpot() {
-    for (var row = 0; row < 4; row++) for (var col = 0; col < 5; col++) {
-      var x = 110 + col * 170, y = 90 + row * 115;
-      if (!NODES.some(function (n) { return !n.hidden && Math.abs(n.x - x) < 60 && Math.abs(n.y - y) < 60; })) return { x: x, y: y };
+    for (var row = 0; row < 4; row++) for (var col = 0; col < 6; col++) {
+      var x = 100 + col * 170, y = 80 + row * 120;
+      if (!NODES.some(function (n) { return !n.hidden && Math.abs(n.x - x) < 150 && Math.abs(n.y - y) < 130; })) return { x: x, y: y };
     }
     return { x: 450, y: 260 };
   }
@@ -378,13 +377,94 @@
     });
   }
 
+  /* ----- Couleurs : un réseau = une couleur ; un port prend la couleur de son réseau ----- */
+  var NET_COLS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#db2777', '#65a30d', '#dc2626'];
+  var NETC = {};
+  function netKey(f) {
+    if (!f || !f.ip) return null;
+    var m = maskOf(f);
+    return int2ip((ip2(f.ip) & ip2(m)) >>> 0) + '/' + prefixLen(m);
+  }
+  function buildNetColours() {
+    NETC = {};
+    var k = 0;
+    NODES.forEach(function (n) {
+      (n.ifaces || []).forEach(function (f) {
+        var key = netKey(f);
+        if (key && !NETC[key]) { NETC[key] = NET_COLS[k % NET_COLS.length]; k++; }
+      });
+    });
+  }
+  // Interface logique d'un port : routeur -> son interface, machine -> sa carte, switch -> aucune
+  function ifaceOf(t) {
+    var nd = N(t.n);
+    if (!nd) return null;
+    if (nd.hidden) { var p = NODES.find(function (x) { return x.lan === nd.id; }); return p ? p.ifaces[0] : null; }
+    if (nd.type === 'switch') return null;
+    if (nd.type === 'router') return nd.ifaces[t.i] || null;
+    return nd.ifaces[0] || null;
+  }
+  function otherEnd(t) {
+    var l = linkAt(t.n, t.i);
+    if (!l) return null;
+    return (l.a.n === t.n && l.a.i === t.i) ? l.b : l.a;
+  }
+  // Ce qu'il faut afficher pour un port : cls (classe CSS), key (réseau), label (info-bulle)
+  function portState(t) {
+    var nd = N(t.n);
+    var isSw = !!nd && nd.type === 'switch' && !nd.hidden;
+    var mine = ifaceOf(t);
+    if (!linkAt(t.n, t.i)) {
+      if (!isSw && mine && mine.ip) return { cls: 'nocable', key: null, label: 'libre : adresse configurée, pas de câble' };
+      return { cls: 'free', key: null, label: 'libre' };
+    }
+    var ifc = mine;
+    if (isSw) {
+      var o = otherEnd(t);
+      var on = o ? N(o.n) : null;
+      if (on && (on.type === 'switch' || on.hidden)) return { cls: 'link', key: null, label: 'branché à un autre switch' };
+      ifc = o ? ifaceOf(o) : null;
+    }
+    if (ifc && ifc.ip) { var key = netKey(ifc); return { cls: 'net', key: key, label: 'branché, réseau ' + key }; }
+    return { cls: 'todo', key: null, label: 'branché, adresse à configurer' };
+  }
+  // Rôles d'un serveur, affichés sous son nom sur le plan
+  function rolesOf(n) {
+    var r = [];
+    if (n.web) r.push('WEB');
+    if (n.dnsSvc) r.push('DNS');
+    if (n.dhcpSvc) r.push('DHCP');
+    return r;
+  }
+  function updateLegend() {
+    var lg = $('legend');
+    lg.textContent = '';
+    var t = document.createElement('p'); t.className = 'legend-title'; t.textContent = 'Couleurs des ports';
+    lg.appendChild(t);
+    [['free', 'Port libre'], ['nocable', 'Adresse configurée, pas de câble'], ['todo', 'Branché, adresse à configurer']].forEach(function (r) {
+      var row = document.createElement('p'); row.className = 'legend-row';
+      var sw = document.createElement('span'); sw.className = 'sw sw-' + r[0];
+      row.appendChild(sw); row.appendChild(document.createTextNode(r[1])); lg.appendChild(row);
+    });
+    var keys = Object.keys(NETC);
+    if (keys.length) {
+      var rt = document.createElement('p'); rt.className = 'legend-title'; rt.textContent = 'Réseaux';
+      lg.appendChild(rt);
+      keys.forEach(function (k) {
+        var row = document.createElement('p'); row.className = 'legend-row';
+        var sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = NETC[k]; sw.style.borderColor = NETC[k];
+        row.appendChild(sw); row.appendChild(document.createTextNode(k)); lg.appendChild(row);
+      });
+    }
+  }
+
   function drawNodes() {
     layerNodes.textContent = '';
     NODES.forEach(function (n) {
       if (n.hidden) return;
       var cls = 'dev k-' + n.kind + (selected === n.id ? ' sel' : '') + (pending && pending.vis === n.id ? ' pend' : '');
       var g = el('g', { class: cls, transform: 'translate(' + n.x + ',' + n.y + ')', tabindex: '0', role: 'button', 'data-id': n.id, 'aria-label': n.label + ', ' + ipText(n) }, layerNodes);
-      el('rect', { x: -80, y: -56, width: 160, height: 150, class: 'hit' }, g);
+      el('rect', { x: -80, y: -56, width: 160, height: 170, class: 'hit' }, g);
       var art = el('g', { filter: 'url(#shadow)', transform: 'scale(1.6)' }, g);
       drawIcon(art, n);
       var connected = LINKS.some(function (l) { return l.a.n === n.id || l.b.n === n.id; });
@@ -392,31 +472,32 @@
       var lab = el('g', {}, g);
       var t1 = el('text', { x: 0, y: 66, class: 'nlab' }, lab); t1.textContent = n.label;
       var t2 = el('text', { x: 0, y: 86, class: 'nip' }, lab); t2.textContent = ipText(n);
+      var roles = rolesOf(n);
+      if (roles.length) { var t3 = el('text', { x: 0, y: 106, class: 'nroles' }, lab); t3.textContent = roles.join(' · '); }
       var bb = lab.getBBox();
       var pill = el('rect', { x: bb.x - 8, y: bb.y - 3, width: bb.width + 16, height: bb.height + 6, rx: 9, class: 'lab-bg' });
       lab.insertBefore(pill, t1);
 
-      if (mode === 'cable') {
-        var ts = targetsOf(n.id);
-        portSpots(n).forEach(function (s, idx) {
-          var t = ts[idx];
-          if (!t) return;
-          var linked = !!linkAt(t.n, t.i);
-          var isPend = pending && pending.vis === n.id && pending.idx === idx;
-          var pg = el('g', { class: 'port' + (linked ? ' on' : '') + (isPend ? ' pend' : ''), transform: 'translate(' + s.x + ',' + s.y + ')', 'data-vis': n.id, 'data-idx': idx }, g);
-          el('circle', { r: 7 }, pg);
-          if (s.t) { var tx = el('text', {}, pg); tx.textContent = s.t; }
-          var tip = el('title', {}, pg);
-          var etat = linked ? 'branché' : 'libre';
-          tip.textContent = s.t ? n.label + ' : port ' + s.t + ' (' + etat + ')' : n.label + ' (' + etat + ')';
-          pg.addEventListener('click', function (e) { e.stopPropagation(); if (!skipClick) handlePort(n.id, idx); });
-          pg.addEventListener('pointerdown', function (e) {
-            if (e.button !== 0) return;
-            e.stopPropagation(); e.preventDefault();
-            startCableDrag(n.id, idx);
-          });
+      // Les ports sont toujours visibles (couleurs), mais ne réagissent qu'en mode Câble (voir CSS)
+      var ts = targetsOf(n.id);
+      portSpots(n).forEach(function (s, idx) {
+        var t = ts[idx];
+        if (!t) return;
+        var st = portState(t);
+        var isPend = pending && pending.vis === n.id && pending.idx === idx;
+        var pg = el('g', { class: 'port ' + st.cls + (isPend ? ' pend' : ''), transform: 'translate(' + s.x + ',' + s.y + ')', 'data-vis': n.id, 'data-idx': idx }, g);
+        if (st.cls === 'net' && st.key) pg.style.setProperty('--c', NETC[st.key] || '#64748b');
+        el('circle', { r: 7 }, pg);
+        if (s.t) { var tx = el('text', {}, pg); tx.textContent = s.t; }
+        var tip = el('title', {}, pg);
+        tip.textContent = s.t ? n.label + ' : port ' + s.t + ' (' + st.label + ')' : n.label + ' (' + st.label + ')';
+        pg.addEventListener('click', function (e) { if (mode !== 'cable' || isSim()) return; e.stopPropagation(); if (!skipClick) handlePort(n.id, idx); });
+        pg.addEventListener('pointerdown', function (e) {
+          if (e.button !== 0 || mode !== 'cable' || isSim()) return;
+          e.stopPropagation(); e.preventDefault();
+          startCableDrag(n.id, idx);
         });
-      }
+      });
 
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
@@ -566,7 +647,7 @@
     propsEl.appendChild(how);
   }
 
-  function draw() { drawBlocks(); drawLinks(); drawNodes(); }
+  function draw() { buildNetColours(); drawBlocks(); drawLinks(); drawNodes(); }
 
   function refresh() {
     draw();
@@ -574,6 +655,7 @@
     refreshHosts();
     syncModeButtons();
     updateBadge();
+    updateLegend();
   }
 
   function toSvg(e) {
@@ -753,6 +835,96 @@
     };
   }
 
+  // Un serveur peut tenir plusieurs rôles à la fois (web, DNS, DHCP) : on coche les services fournis
+  function renderServerProps(n) {
+    var sh = document.createElement('p'); sh.className = 'help';
+    sh.textContent = 'Un serveur peut fournir plusieurs services à la fois : cochez ceux qu\'il assure.';
+    propsEl.appendChild(sh);
+    field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
+    field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
+    field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
+    field(propsEl, 'DNS utilisé', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur DNS interrogé par cette machine pour traduire un nom en adresse IP.');
+
+    var sl = document.createElement('p'); sl.className = 'area-label'; sl.textContent = 'Services fournis';
+    propsEl.appendChild(sl);
+    var roles = [
+      { key: 'web', label: 'Serveur web', on: function () { n.web = true; if (!n.siteName) n.siteName = SITE; }, off: function () { n.web = false; } },
+      { key: 'dns', label: 'Serveur DNS', on: function () { n.dnsSvc = true; if (!n.records) n.records = {}; }, off: function () { n.dnsSvc = false; } },
+      { key: 'dhcp', label: 'Serveur DHCP', on: function () { n.dhcpSvc = true; if (!n.pool) n.pool = { start: '', end: '' }; if (n.dhcpGw === undefined) n.dhcpGw = ''; if (n.dhcpDns === undefined) n.dhcpDns = ''; if (!n.leases) n.leases = {}; }, off: function () { n.dhcpSvc = false; } }
+    ];
+    roles.forEach(function (r) {
+      var wrap = document.createElement('div'); wrap.className = 'field check';
+      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid);
+      cb.checked = !!n[r.key === 'web' ? 'web' : r.key === 'dns' ? 'dnsSvc' : 'dhcpSvc'];
+      cb.addEventListener('change', function () {
+        if (cb.checked) r.on(); else r.off();
+        setStatus(cb.checked ? r.label + ' activé.' : r.label + ' désactivé.');
+        draw(); refresh();
+      });
+      var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = r.label;
+      wrap.appendChild(cb); wrap.appendChild(cl); propsEl.appendChild(wrap);
+    });
+
+    if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
+
+    if (n.dnsSvc) {
+      var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
+      var ta = document.createElement('textarea');
+      ta.rows = 3; ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n');
+      ta.addEventListener('change', function () {
+        var rec = {}, bad = null;
+        ta.value.split('\n').forEach(function (line) {
+          var parts = line.trim().split(/\s+/);
+          if (parts.length < 2 || !parts[0]) return;
+          if (!ipOK(parts[1])) { bad = parts[1]; return; }
+          rec[parts[0]] = parts[1];
+        });
+        if (bad) { setStatus('Adresse invalide dans les noms : ' + bad); ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n'); return; }
+        n.records = rec; setStatus('Noms enregistrés.');
+      });
+      propsEl.appendChild(lab); propsEl.appendChild(ta);
+    }
+
+    if (n.dhcpSvc) {
+      var dlab = document.createElement('p'); dlab.className = 'area-label'; dlab.textContent = 'Service DHCP';
+      propsEl.appendChild(dlab);
+      var dhelp = document.createElement('p'); dhelp.className = 'help';
+      dhelp.textContent = 'Le serveur distribue les adresses de sa plage aux machines de son réseau local qui le demandent.';
+      propsEl.appendChild(dhelp);
+      var poolChange = function (key) {
+        return function (inp) {
+          var v = inp.value.trim();
+          if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
+          n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
+          draw();
+        };
+      };
+      field(propsEl, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
+      field(propsEl, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
+      field(propsEl, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
+      field(propsEl, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
+      var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
+      propsEl.appendChild(lt);
+      var lids = Object.keys(n.leases);
+      if (!lids.length) {
+        var none = document.createElement('p'); none.className = 'help';
+        none.textContent = 'Aucune adresse distribuée pour l\'instant.';
+        propsEl.appendChild(none);
+      } else {
+        var lta = document.createElement('table'); lta.className = 'rtable';
+        var lh = lta.createTHead().insertRow();
+        ['Machine', 'Adresse'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; lh.appendChild(th); });
+        var lb = lta.createTBody();
+        lids.forEach(function (id) {
+          var tr = lb.insertRow();
+          var mach = N(id);
+          [mach ? mach.label : id, n.leases[id]].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+        });
+        propsEl.appendChild(lta);
+      }
+    }
+  }
+
   function renderProps() {
     propsEl.textContent = '';
     var bl = selBlock ? BLOCKS.find(function (b) { return b.id === selBlock; }) : null;
@@ -801,43 +973,8 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-    } else if (n.dhcpSvc) {
-      var dhelp = document.createElement('p'); dhelp.className = 'help';
-      dhelp.textContent = 'Le serveur distribue les adresses de sa plage aux machines de son réseau local qui le demandent.';
-      propsEl.appendChild(dhelp);
-      field(propsEl, 'Adresse IP du serveur', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
-      field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
-      var poolChange = function (key) {
-        return function (inp) {
-          var v = inp.value.trim();
-          if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
-          n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
-          draw();
-        };
-      };
-      field(propsEl, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
-      field(propsEl, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
-      field(propsEl, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
-      field(propsEl, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
-      var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
-      propsEl.appendChild(lt);
-      var lids = Object.keys(n.leases);
-      if (!lids.length) {
-        var none = document.createElement('p'); none.className = 'help';
-        none.textContent = 'Aucune adresse distribuée pour l\'instant.';
-        propsEl.appendChild(none);
-      } else {
-        var lta = document.createElement('table'); lta.className = 'rtable';
-        var lh = lta.createTHead().insertRow();
-        ['Machine', 'Adresse'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; lh.appendChild(th); });
-        var lb = lta.createTBody();
-        lids.forEach(function (id) {
-          var tr = lb.insertRow();
-          var mach = N(id);
-          [mach ? mach.label : id, n.leases[id]].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
-        });
-        propsEl.appendChild(lta);
-      }
+    } else if (n.type === 'server') {
+      renderServerProps(n);
     } else {
       field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
       field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }), 'Les machines ayant les mêmes nombres (selon le masque) sont sur le même réseau. 255.255.255.0 : réseau /24.');
@@ -860,29 +997,10 @@
         }
       }
       field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
-      if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
-      field(propsEl, 'Serveur DNS', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur qui traduit un nom en adresse IP.');
+      field(propsEl, 'DNS utilisé', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur DNS interrogé par cette machine pour traduire un nom en adresse IP.');
     }
 
     if (n.type === 'router') renderRoutingTable(n);
-
-    if (n.dnsSvc) {
-      var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
-      var ta = document.createElement('textarea');
-      ta.rows = 3; ta.value = Object.keys(n.records).map(function (k) { return k + ' ' + n.records[k]; }).join('\n');
-      ta.addEventListener('change', function () {
-        var rec = {}, bad = null;
-        ta.value.split('\n').forEach(function (line) {
-          var parts = line.trim().split(/\s+/);
-          if (parts.length < 2 || !parts[0]) return;
-          if (!ipOK(parts[1])) { bad = parts[1]; return; }
-          rec[parts[0]] = parts[1];
-        });
-        if (bad) { setStatus('Adresse invalide dans les noms : ' + bad); ta.value = Object.keys(n.records).map(function (k) { return k + ' ' + n.records[k]; }).join('\n'); return; }
-        n.records = rec; setStatus('Noms enregistrés.');
-      });
-      propsEl.appendChild(lab); propsEl.appendChild(ta);
-    }
 
     var del = document.createElement('button');
     del.type = 'button'; del.className = 'danger'; del.textContent = 'Supprimer cet appareil';

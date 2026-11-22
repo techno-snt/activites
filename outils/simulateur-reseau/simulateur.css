@@ -256,3 +256,25 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .rtable th, .rtable td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
 .rtable th { font-weight: 700; color: var(--blue); }
 .rtable td { font-family: var(--mono); font-size: .8rem; }
+
+/* Ports : toujours visibles, cliquables seulement en mode Câble */
+#canvas:not([data-mode="cable"]) .port { pointer-events: none; }
+.port.net circle { fill: var(--c); stroke: var(--c); }
+.port.net text { fill: #ffffff; }
+.port.nocable circle { fill: #fff1f2; stroke: #dc2626; stroke-width: 2.5; }
+.port.todo circle { fill: #fef3c7; stroke: #d97706; stroke-width: 2.5; }
+.port.link circle { fill: #64748b; stroke: #475569; }
+.port.link text { fill: #ffffff; }
+
+/* Rôles d'un serveur, sous son nom */
+.dev .nroles { fill: #4338ca; font-family: var(--sans); font-size: 14px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fbfcfe; stroke-width: 5px; stroke-linejoin: round; }
+.k-server .body { fill: #f1f5f9; stroke: #334155; }
+
+/* Légende des couleurs */
+.legend { position: absolute; right: 12px; bottom: 12px; z-index: 2; background: rgba(255, 255, 255, .96); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; font-size: .78rem; color: var(--ink); max-width: 240px; pointer-events: none; box-shadow: 0 2px 8px rgba(15, 27, 61, .12); }
+.legend-title { margin: 0 0 4px; font-weight: 700; color: var(--blue); font-size: .8rem; max-width: none; }
+.legend-row { margin: 2px 0; display: flex; align-items: center; gap: 6px; max-width: none; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #64748b; background: #ffffff; flex: 0 0 auto; }
+.sw-free { background: #ffffff; border-color: #64748b; }
+.sw-nocable { background: #fff1f2; border-color: #dc2626; }
+.sw-todo { background: #fef3c7; border-color: #d97706; }

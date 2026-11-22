@@ -68,9 +68,7 @@
     <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Switch</span></button>
     <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur</span></button>
     <button type="button" data-add="wifi" draggable="true" title="Routeur Wi-Fi" aria-label="Routeur Wi-Fi"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur Wi-Fi</span></button>
-    <button type="button" data-add="web" draggable="true" title="Serveur web" aria-label="Serveur web"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur web</span></button>
-    <button type="button" data-add="dns" draggable="true" title="Serveur DNS" aria-label="Serveur DNS"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur DNS</span></button>
-    <button type="button" data-add="dhcp" draggable="true" title="Serveur DHCP" aria-label="Serveur DHCP"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur DHCP</span></button>
+    <button type="button" data-add="server" draggable="true" title="Serveur : web, DNS, DHCP (plusieurs rôles possibles)" aria-label="Serveur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur</span></button>
     <button type="button" data-add="block" draggable="true" title="Bloc : regrouper des appareils (salle, réseau)" aria-label="Bloc"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Bloc</span></button>
   </aside>
 
@@ -78,6 +76,7 @@
     <div class="canvas-wrap" id="canvasWrap">
       <span class="plan-badge" id="modeBadge" role="status">Mode conception</span>
       <p class="plan-hint" id="planHint"></p>
+      <div class="legend" id="legend" aria-label="Légende des couleurs"></div>
       <svg id="canvas" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Plan du réseau">
         <defs>
           <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
