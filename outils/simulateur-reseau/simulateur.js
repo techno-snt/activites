@@ -736,17 +736,16 @@
     return rows;
   }
   // État des connexions des interfaces d'un routeur (vert : câblée et adressée ; orange : câblée sans adresse ; rouge : non câblée)
-  function renderConnections(n) {
+  function renderConnections(n, host) {
     var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Gérer les connexions';
-    propsEl.appendChild(title);
+    host.appendChild(title);
     var t = document.createElement('table'); t.className = 'rtable conn-table';
     var head = t.createTHead().insertRow();
-    ['N°', 'Adresse IP', 'Réseau', 'État'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
+    ['Adresse IP', 'Réseau', 'État'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
     var body = t.createTBody();
     n.ifaces.forEach(function (f, i) {
       var cabled = !!linkAt(n.id, i);
       var tr = body.insertRow();
-      tr.insertCell().textContent = String(i + 1);
       tr.insertCell().textContent = f.ip || '—';
       tr.insertCell().textContent = f.ip ? int2ip((ip2(f.ip) & ip2(maskOf(f))) >>> 0) + '/' + prefixLen(maskOf(f)) : '—';
       var st = tr.insertCell();
@@ -755,16 +754,16 @@
       st.appendChild(dot);
       st.appendChild(document.createTextNode(cabled && f.ip ? 'Connectée' : cabled ? 'Sans adresse IP' : 'Non câblée'));
     });
-    propsEl.appendChild(t);
+    host.appendChild(t);
   }
-  function renderRoutingTable(n) {
+  function renderRoutingTable(n, host) {
     var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Table de routage';
-    propsEl.appendChild(title);
+    host.appendChild(title);
     var rows = routingRows(n);
     if (!rows.length) {
       var none = document.createElement('p'); none.className = 'help';
       none.textContent = 'Configurez les interfaces pour voir les réseaux connus.';
-      propsEl.appendChild(none);
+      host.appendChild(none);
       return;
     }
     var t = document.createElement('table'); t.className = 'rtable';
@@ -775,10 +774,10 @@
       var tr = body.insertRow();
       [r.dst, r.via, r.iface].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
     });
-    propsEl.appendChild(t);
+    host.appendChild(t);
     var how = document.createElement('p'); how.className = 'help';
     how.textContent = 'Le routeur d\'abord les réseaux qui lui sont directement connectés, puis la route par défaut (0.0.0.0/0) pour tout le reste.';
-    propsEl.appendChild(how);
+    host.appendChild(how);
   }
 
   function draw() { buildNetColours(); drawBlocks(); drawLinks(); drawNodes(); }
@@ -1040,6 +1039,8 @@
     }
   }
 
+  // Onglet ouvert dans la configuration d'un routeur (conservé d'un clic à l'autre)
+  var routerTab = 'iface';
   function renderProps() {
     propsEl.textContent = '';
     var bl = selBlock ? BLOCKS.find(function (b) { return b.id === selBlock; }) : null;
@@ -1072,6 +1073,26 @@
       field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else if (n.type === 'router') {
+      var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist');
+      var TABS = [['iface', 'Interfaces'], ['conn', 'Connexions'], ['route', 'Routes']];
+      var panes = {}, tabBtns = {};
+      var showPane = function (k) {
+        TABS.forEach(function (t) {
+          panes[t[0]].hidden = t[0] !== k;
+          tabBtns[t[0]].setAttribute('aria-selected', t[0] === k ? 'true' : 'false');
+        });
+        routerTab = k;
+      };
+      TABS.forEach(function (t) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'ptab'; b.setAttribute('role', 'tab'); b.textContent = t[1];
+        b.addEventListener('click', function () { showPane(t[0]); });
+        tabBtns[t[0]] = b; tabs.appendChild(b);
+        var pn = document.createElement('div'); pn.className = 'ppane'; pn.setAttribute('role', 'tabpanel');
+        panes[t[0]] = pn;
+      });
+      propsEl.appendChild(tabs);
+      TABS.forEach(function (t) { propsEl.appendChild(panes[t[0]]); });
+      var ip = panes.iface;
       n.ifaces.forEach(function (f, i) {
         var card = document.createElement('div'); card.className = 'iface-card';
         var title = document.createElement('p'); title.className = 'iface-title';
@@ -1087,7 +1108,7 @@
         cb.addEventListener('change', function () { f.wan = cb.checked; title.textContent = titleText(); draw(); });
         var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = 'Interface vers l\'opérateur (WAN)';
         wrap.appendChild(cb); wrap.appendChild(cl); card.appendChild(wrap);
-        propsEl.appendChild(card);
+        ip.appendChild(card);
       });
       var bar = document.createElement('div'); bar.className = 'iface-bar';
       var add = document.createElement('button'); add.type = 'button'; add.textContent = 'Ajouter une interface';
@@ -1095,9 +1116,11 @@
       var rem = document.createElement('button'); rem.type = 'button'; rem.textContent = 'Retirer la dernière';
       rem.disabled = n.ifaces.length <= 1 || linkAt(n.id, n.ifaces.length - 1);
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
-      bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
-      renderConnections(n);
-      field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+      bar.appendChild(add); bar.appendChild(rem); ip.appendChild(bar);
+      field(ip, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+      renderConnections(n, panes.conn);
+      renderRoutingTable(n, panes.route);
+      showPane(panes[routerTab] ? routerTab : 'iface');
     } else {
       var sv = document.createElement('p'); sv.className = 'help';
       sv.textContent = 'Les services (serveur web, DNS, DHCP) s\'installent sur le bureau de la machine, en simulation (clic sur l\'ordinateur).';
@@ -1142,8 +1165,6 @@
       field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
       field(propsEl, 'DNS utilisé', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur DNS interrogé par cette machine pour traduire un nom en adresse IP.');
     }
-
-    if (n.type === 'router') renderRoutingTable(n);
 
     var del = document.createElement('button');
     del.type = 'button'; del.className = 'danger'; del.textContent = 'Supprimer cet appareil';

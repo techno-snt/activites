@@ -412,6 +412,16 @@ body.sim .plan-hint { display: none; }
 .iface-card .field.check { margin-bottom: 0; }
 .conn-table { table-layout: fixed; font-size: .75rem; }
 .conn-table th, .conn-table td { padding: 5px 3px; }
-.conn-table th:nth-child(1), .conn-table td:nth-child(1) { width: 26px; }
+.conn-table th:nth-child(1), .conn-table td:nth-child(1) { width: 118px; }
+.conn-table th:nth-child(2), .conn-table td:nth-child(2) { width: 128px; }
+.conn-table td:last-child { padding-left: 10px; }
 .conn-table td { white-space: nowrap; }
 .conn-table td:last-child { white-space: normal; }
+
+/* Configuration du routeur : onglets, pour tenir sans défilement (comme les fenêtres de Filius) */
+.ptabs { display: flex; gap: 2px; border-bottom: 2px solid var(--line); margin-bottom: 12px; }
+.ptab { border: 0; background: none; padding: 7px 10px; font: inherit; font-size: .9rem; font-weight: 700; color: var(--ink); border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; border-radius: 6px 6px 0 0; }
+.ptab:hover { background: #eef4ff; }
+.ptab[aria-selected="true"] { color: var(--blue); border-bottom-color: var(--blue); }
+.ptab:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.ppane[hidden] { display: none; }
