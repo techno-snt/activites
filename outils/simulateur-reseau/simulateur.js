@@ -121,7 +121,7 @@
       }
       if (local) continue;
       if (node.type !== 'router') {
-        if (!node.gw) return { ok: false, msg: dst + ' est hors de mon réseau et aucune passerelle n\'est configurée : le paquet ne peut pas sortir.', hops: hops };
+        if (!node.gw) return { ok: false, msg: 'Impossible de joindre le réseau de destination.', hops: hops };
         if (!sameNet(node.gw, maskOf(node.ifaces[0]), node.ifaces[0].ip)) return { ok: false, msg: 'La passerelle ' + node.gw + ' n\'est pas dans mon réseau : vérifiez l\'adresse et le masque.', hops: hops };
         if (!linkAt(cur, 0)) return { ok: false, msg: 'Câble non branché.', hops: hops };
         var gseg = segment(cur, 0), g = null;
@@ -132,7 +132,7 @@
         if (!g) return { ok: false, msg: 'La passerelle ' + node.gw + ' ne répond pas : aucun routeur de mon réseau porte cette adresse.', hops: hops };
         hops.push(g.n); cur = g.n; continue;
       }
-      if (!node.defGw) return { ok: false, msg: node.label + ' ne sait pas où envoyer ce paquet (pas de route par défaut).', hops: hops };
+      if (!node.defGw) return { ok: false, msg: 'Destination inaccessible.', hops: hops };
       var out = -1, nh = null;
       for (var o = 0; o < node.ifaces.length && !nh; o++) {
         if (!linkAt(cur, o)) continue;
@@ -161,10 +161,13 @@
     updateTrameApps(hostId);
   }
   // Une trame traverse les machines de son chemin : émission, transferts par les routeurs, réception
+  function ttlOf(hops) {
+    return 64 - hops.filter(function (id, k) { var x = N(id); return k > 0 && x && x.type === 'router'; }).length;
+  }
   function recordPath(hops, src, dst, info, sens) {
     hops.forEach(function (id, k) {
       var role = k === 0 ? 'Émission' : (k === hops.length - 1 ? 'Réception' : 'Transfert');
-      addTrame(id, 'Internet', src, dst, sens + ' · ' + role + ' · TTL ' + (64 - k));
+      addTrame(id, 'Internet', src, dst, sens + ' · ' + role + ' · TTL ' + ttlOf(hops.slice(0, k + 1)));
       if (k === 0 || k === hops.length - 1) addTrame(id, 'Application', src, dst, sens === 'Requête' ? info : 'Réponse : ' + info);
     });
   }
@@ -274,8 +277,19 @@
       var k = w.type === 'desk' ? 0 : WINS.filter(function (x) { return x.host === w.host && x.type !== 'desk'; }).indexOf(w) % 5;
       var W = box.clientWidth || 780; // l'écran n'est pas encore dans la page au moment de sa construction
       if (w.type === 'desk') { w.x = 12; w.y = 12; }
-      else if (w.type === 'term') { w.x = Math.max(8, W - 432 - k * 24); w.y = 120 + k * 20; }
+      else if (w.type === 'term') { w.x = 14 + k * 16; w.y = 110 + k * 12; }
       else { w.x = Math.max(8, Math.round((W - 460) / 2) + k * 24); w.y = 120 + k * 20; }
+    }
+    if (w.type === 'desk' && w.w === undefined) {
+      // Le bureau occupe toute la zone de simulation par défaut
+      w.w = Math.max(320, (box.clientWidth || 780) - 24); w.h = Math.max(220, (box.clientHeight || 520) - 24);
+    }
+    if (w.type === 'term' && w.w === undefined) {
+      // Le terminal prend la place disponible dans l'écran du bureau
+      // Taille de l'écran : celle du bureau de cette machine (l'écran n'est pas encore dans la page à sa construction)
+      var dk = WINS.filter(function (x) { return x.type === 'desk' && x.host === w.host && x.w; })[0];
+      var bw = dk ? dk.w - 2 : (box.clientWidth || 780), bh = dk ? dk.h - 34 : (box.clientHeight || 520);
+      w.w = Math.max(420, bw - 28 - (w.x - 14)); w.h = Math.max(260, bh - 110 - 64);
     }
     win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
     if (w.w) { win.style.width = w.w + 'px'; win.style.height = w.h + 'px'; }
@@ -1574,7 +1588,7 @@
         ok++;
         var ms = latency(p.legs);
         times.push(ms);
-        printTo(h.id, p.msg + ' : temps=' + ms + ' ms (paquet ' + (k + 1) + ')');
+        printTo(h.id, p.msg + ' : temps=' + ms + ' ms TTL=' + ttlOf(p.legs[1] || p.legs[0]) + ' (paquet ' + (k + 1) + ')');
       }
       else printTo(h.id, 'Échec (paquet ' + (k + 1) + ') : ' + p.msg);
     }
@@ -1684,6 +1698,7 @@
       printTo(h.id, 'La ligne de commande n\'est pas installée sur ' + h.label + '. Double-cliquez l\'ordinateur en simulation, puis installez-la.');
       return;
     }
+    if ((OUT[h.id] || []).length) printTo(h.id, '');
     printTo(h.id, h.label + ' > ' + line);
     var parts = line.trim().split(/\s+/);
     var cmd = (parts[0] || '').toLowerCase();
