@@ -28,7 +28,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 /* Coque de l'application */
 .app-shell {
   display: grid; height: 100%;
-  grid-template-columns: 84px minmax(0, 1fr) 300px;
+  grid-template-columns: 84px minmax(0, 1fr) 370px;
   grid-template-rows: 56px minmax(0, 1fr) 30px;
   grid-template-areas: "tool tool tool" "pal stage props" "status status status";
 }
@@ -402,3 +402,16 @@ body.sim .desk-zone { position: relative; inset: auto; grid-column: 2; grid-row:
 body.sim .legend { left: 12px; right: auto; bottom: 12px; max-width: 200px; }
 body.sim .plan-hint { display: none; }
 .desk-empty { margin: auto; padding: 24px; text-align: center; color: var(--ink); font-size: .9rem; max-width: 320px; }
+
+/* Configuration : une carte par interface, adresse et masque côte à côte */
+.iface-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; background: #f8fafc; }
+.iface-title { margin: 0 0 8px; font-weight: 700; color: var(--blue); font-size: .95rem; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pair .field { margin-bottom: 8px; }
+.pair .field input[type="text"] { font-size: .85rem; padding: 6px 8px; }
+.iface-card .field.check { margin-bottom: 0; }
+.conn-table { table-layout: fixed; font-size: .75rem; }
+.conn-table th, .conn-table td { padding: 5px 3px; }
+.conn-table th:nth-child(1), .conn-table td:nth-child(1) { width: 26px; }
+.conn-table td { white-space: nowrap; }
+.conn-table td:last-child { white-space: normal; }

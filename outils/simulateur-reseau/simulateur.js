@@ -610,9 +610,11 @@
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
-      g.addEventListener('click', function () { if (!skipClick && mode !== 'select') clickNode(n); });
-      // En simulation, le double-clic sur un ordinateur ouvre son bureau dans la zone dédiée
-      g.addEventListener('dblclick', function () { if (isSim()) openWin('desk', n.id); });
+      // En simulation, un clic sur un ordinateur ouvre son bureau dans la zone dédiée
+      g.addEventListener('click', function () {
+        if (isSim()) { openWin('desk', n.id); return; }
+        if (!skipClick && mode !== 'select') clickNode(n);
+      });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
@@ -1071,13 +1073,21 @@
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else if (n.type === 'router') {
       n.ifaces.forEach(function (f, i) {
-        field(propsEl, 'Interface ' + (i + 1) + ' : adresse IP', f.ip, ipChange(function (v) { f.ip = v; }));
-        field(propsEl, 'Interface ' + (i + 1) + ' : masque', maskOf(f), maskChange(function (v) { f.mask = v; }));
+        var card = document.createElement('div'); card.className = 'iface-card';
+        var title = document.createElement('p'); title.className = 'iface-title';
+        var titleText = function () { return 'Interface ' + (i + 1) + (f.wan ? ' · vers l\'opérateur' : ''); };
+        title.textContent = titleText();
+        card.appendChild(title);
+        var pair = document.createElement('div'); pair.className = 'pair';
+        field(pair, 'Adresse IP', f.ip, ipChange(function (v) { f.ip = v; }));
+        field(pair, 'Masque', maskOf(f), maskChange(function (v) { f.mask = v; }));
+        card.appendChild(pair);
         var wrap = document.createElement('div'); wrap.className = 'field check';
         var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid); cb.checked = !!f.wan;
-        cb.addEventListener('change', function () { f.wan = cb.checked; draw(); });
+        cb.addEventListener('change', function () { f.wan = cb.checked; title.textContent = titleText(); draw(); });
         var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = 'Interface vers l\'opérateur (WAN)';
-        wrap.appendChild(cb); wrap.appendChild(cl); propsEl.appendChild(wrap);
+        wrap.appendChild(cb); wrap.appendChild(cl); card.appendChild(wrap);
+        propsEl.appendChild(card);
       });
       var bar = document.createElement('div'); bar.className = 'iface-bar';
       var add = document.createElement('button'); add.type = 'button'; add.textContent = 'Ajouter une interface';
@@ -1090,7 +1100,7 @@
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else {
       var sv = document.createElement('p'); sv.className = 'help';
-      sv.textContent = 'Les services (serveur web, DNS, DHCP) s\'installent sur le bureau de la machine, en simulation (double-clic).';
+      sv.textContent = 'Les services (serveur web, DNS, DHCP) s\'installent sur le bureau de la machine, en simulation (clic sur l\'ordinateur).';
       propsEl.appendChild(sv);
       var f0 = n.ifaces[0];
       var wwrap = document.createElement('div'); wwrap.className = 'field check';
@@ -1788,7 +1798,7 @@
   }
 
   /* ----- Zoom, déplacement du plan, clavier, terminal, palette ----- */
-  var VB = { x: -110, y: -60, w: 1220, h: 634 };
+  var VB = { x: -170, y: -90, w: 1440, h: 748 };
   function applyVB() { svg.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h); }
   // Mode simulation : le schéma se réduit pour tenir entièrement dans sa zone (à gauche), le bureau occupe l'autre zone
   var savedVB = null;
