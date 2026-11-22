@@ -1103,12 +1103,16 @@
   var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
   var hasSoft = function (n, id) { return (n.software || []).indexOf(id) >= 0; };
   // Installer ou désinstaller un logiciel. Serveur web et Serveur DNS fixent les services du serveur.
+  // Fichier index.html du site, tel qu'il est au départ
+  function defaultPage(n) {
+    return '<h1>' + (n.siteName || SITE) + '</h1>\n<p>Bienvenue sur mon site.</p>';
+  }
   function setSoftware(n, id, on) {
     n.software = n.software || [];
     var i = n.software.indexOf(id);
     if (on && i < 0) n.software.push(id);
     if (!on && i >= 0) n.software.splice(i, 1);
-    if (id === 'web') { n.web = on; if (on && !n.siteName) n.siteName = SITE; }
+    if (id === 'web') { n.web = on; if (on && !n.siteName) n.siteName = SITE; if (on && !n.pageHtml) n.pageHtml = defaultPage(n); }
     if (id === 'dns') { n.dnsSvc = on; if (on && !n.records) n.records = {}; }
     if (id === 'dhcp') {
       n.dhcpSvc = on;
@@ -1167,6 +1171,23 @@
     decorateWin(win, w, box);
     return win;
   }
+  // Éditeur de textes : modifie le fichier index.html du site de la machine
+  function buildEdit(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app edit'; win.setAttribute('aria-label', 'Éditeur de textes de ' + h.label);
+    win.appendChild(winHead(w, 'Éditeur de textes · ' + h.label, false));
+    var body = document.createElement('div'); body.className = 'dwin-body edit-body';
+    var name = document.createElement('p'); name.className = 'edit-name';
+    name.textContent = 'index.html' + (hasSoft(h, 'web') ? ' · publié par le serveur web' : ' · pas de serveur web : fichier non publié');
+    var ta = document.createElement('textarea'); ta.spellcheck = false; ta.setAttribute('aria-label', 'Contenu de index.html');
+    ta.value = h.pageHtml || defaultPage(h);
+    var save = document.createElement('button'); save.type = 'button'; save.className = 'edit-save'; save.textContent = 'Enregistrer';
+    save.addEventListener('click', function () { h.pageHtml = ta.value; setStatus('index.html enregistré sur ' + h.label + '.'); });
+    body.appendChild(name); body.appendChild(ta); body.appendChild(save);
+    win.appendChild(body);
+    decorateWin(win, w, box);
+    return win;
+  }
   // Fenêtre du navigateur web dans le bureau
   function buildNav(w, box) {
     var h = N(w.host);
@@ -1189,9 +1210,11 @@
       view.appendChild(hint);
     } else if (st.page) {
       var page = document.createElement('div'); page.className = 'nav-page';
-      var t = document.createElement('h3'); t.textContent = st.page.title;
-      var p1 = document.createElement('p'); p1.textContent = 'Page d\'accueil de ' + st.page.name + ' (adresse IP ' + st.page.ip + ').';
-      page.appendChild(t); page.appendChild(p1);
+      var p1 = document.createElement('p'); p1.className = 'nav-url'; p1.textContent = st.page.name + ' · ' + st.page.ip;
+      // Rendu du fichier index.html dans un cadre sans script (sandbox vide)
+      var frame = document.createElement('iframe'); frame.className = 'nav-frame'; frame.setAttribute('sandbox', '');
+      frame.setAttribute('title', 'Page ' + st.page.name); frame.srcdoc = st.page.html || '';
+      page.appendChild(p1); page.appendChild(frame);
       if (st.page.https) { var p2 = document.createElement('p'); p2.className = 'nav-note'; p2.textContent = 'Connexion HTTPS : l\'échange est chiffré (chiffrement non simulé ici).'; page.appendChild(p2); }
       view.appendChild(page);
     } else if (st.error) {
@@ -1261,6 +1284,7 @@
         else if (a.id === 'cmd') openWin('term', h.id);
         else if (a.id === 'web' || a.id === 'dns' || a.id === 'dhcp') openWin('svc-' + a.id, h.id);
         else if (a.id === 'nav') openWin('nav', h.id);
+        else if (a.id === 'edit') openWin('edit', h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
       grid.appendChild(b);
@@ -1280,7 +1304,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
@@ -1484,7 +1508,7 @@
     if (!(srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })))
       return navFinish(w, tok, { status: 'Connexion refusée', error: 'Ce serveur n\'a pas de serveur web installé.' });
     if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
-    navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https } });
+    navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https, html: srv.pageHtml || defaultPage(srv) } });
   }
 
   function ipconfig(h) {

@@ -338,7 +338,7 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 
 /* Applications dans le bureau : elles restent dans l'écran de la machine */
 .desk-screen { overflow: hidden; }
-.desk-screen > .dwin.app { width: 460px; max-height: calc(100% - 60px); }
+.desk-screen > .dwin.app { width: 460px; max-height: calc(100% - 130px); }
 .desk-screen > .dwin.term-app { width: 420px; }
 .term-body { padding: 0; display: flex; flex-direction: column; overflow: hidden; max-height: none; }
 .term-app-out { margin: 0; flex: 1; min-height: 120px; max-height: 220px; overflow: auto; background: #0b1220; color: #e2e8f0; font-family: var(--mono); font-size: .78rem; line-height: 1.45; padding: 8px 10px; white-space: pre-wrap; }
@@ -356,7 +356,7 @@ body.sim .term { display: none !important; }
 .nav-bar input { flex: 1; min-width: 0; min-height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; font-family: var(--mono); font-size: .82rem; background: #ffffff; }
 .nav-bar button { width: 40px; min-height: 34px; border: 0; border-radius: 8px; background: var(--blue); cursor: pointer; display: grid; place-items: center; }
 .nav-bar button svg { width: 18px; height: 18px; fill: none; stroke: #ffffff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.nav-view { flex: 1; min-height: 160px; max-height: 260px; overflow: auto; background: #ffffff; padding: 14px; }
+.nav-view { flex: 1; min-height: 0; max-height: 230px; overflow: auto; background: #ffffff; padding: 14px; }
 .nav-hint { color: var(--muted); font-size: .85rem; max-width: none; margin: 0; }
 .nav-page h3 { margin: 0 0 8px; font-size: 1.1rem; color: var(--ink); }
 .nav-page p { margin: 0 0 6px; font-size: .9rem; max-width: none; }
@@ -365,3 +365,12 @@ body.sim .term { display: none !important; }
 .nav-error h3 { margin: 0 0 4px; font-size: 1rem; color: #991b1b; }
 .nav-error p { margin: 0; font-size: .86rem; max-width: none; }
 .nav-status { margin: 0; padding: 6px 10px; border-top: 1px solid var(--line); background: #f8fafc; font-size: .78rem; color: var(--muted); max-width: none; min-height: 1.6em; }
+
+/* Éditeur de textes et rendu de la page (bureau) */
+.desk-screen > .dwin.edit { width: 500px; }
+.edit-body { display: flex; flex-direction: column; gap: 8px; max-height: none; overflow: hidden; }
+.edit-name { margin: 0; font-family: var(--mono); font-size: .78rem; color: var(--muted); max-width: none; }
+.edit-body textarea { width: 100%; min-height: 200px; max-height: 240px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: var(--mono); font-size: .8rem; line-height: 1.45; resize: vertical; }
+.edit-save { align-self: flex-end; min-height: 36px; border: 0; border-radius: 8px; background: var(--blue); color: #ffffff; font-weight: 700; padding: 0 14px; cursor: pointer; }
+.nav-url { font-family: var(--mono); font-size: .75rem !important; color: var(--muted); margin-bottom: 6px !important; }
+.nav-frame { width: 100%; height: 150px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; }
