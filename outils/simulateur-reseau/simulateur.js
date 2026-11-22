@@ -1327,7 +1327,8 @@
     form.appendChild(ps); form.appendChild(inp);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var line = inp.value; inp.value = ''; w.draft = '';
+      var line = inp.value;
+      if (!termBusy) { inp.value = ''; w.draft = ''; }
       refreshHosts(); termHost.value = h.id;
       runCommand(line);
     });
@@ -1450,8 +1451,13 @@
   function renderDesk() {
     WINS = WINS.filter(function (w) { return N(w.host); });
     deskZone.textContent = '';
-    deskZone.hidden = !WINS.length || !isSim();
+    deskZone.hidden = !isSim();
     if (deskZone.hidden) return;
+    if (!WINS.length) {
+      var em = document.createElement('p'); em.className = 'desk-empty';
+      em.textContent = 'Double-cliquez un ordinateur sur le plan pour ouvrir son bureau.';
+      deskZone.appendChild(em); return;
+    }
     // Seuls les bureaux sont au premier niveau ; leurs applications sont dans leur écran
     WINS.filter(function (w) { return w.type === 'desk' && !w.min; }).forEach(function (w) { deskZone.appendChild(buildDesk(w)); });
     var reduced = WINS.filter(function (w) { return w.type === 'desk' && w.min; });
@@ -1644,7 +1650,15 @@
     printTo(h.id, 'Serveur DNS : ' + (h.dns || '(aucun)'));
   }
 
+  // Une seule commande à la fois : sinon les sorties d'un ping animé se mélangent à la commande suivante
+  var termBusy = false;
   async function runCommand(line) {
+    var hb = N(termHost.value);
+    if (hb && termBusy) { printTo(hb.id, 'Patientez : la commande précédente n\'est pas terminée.'); return; }
+    termBusy = true;
+    try { await runCommandNow(line); } finally { termBusy = false; }
+  }
+  async function runCommandNow(line) {
     var h = N(termHost.value);
     if (!h) { setStatus('Ajoutez une machine pour utiliser le terminal.'); return; }
     if (!hasSoft(h, 'cmd')) {
@@ -1742,6 +1756,25 @@
   /* ----- Zoom, déplacement du plan, clavier, terminal, palette ----- */
   var VB = { x: -110, y: -60, w: 1220, h: 634 };
   function applyVB() { svg.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h); }
+  // Mode simulation : le schéma se réduit pour tenir entièrement dans sa zone (à gauche), le bureau occupe l'autre zone
+  var savedVB = null;
+  function fitPlan() {
+    if (!isSim()) return;
+    var r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    NODES.forEach(function (n) {
+      if (n.hidden || n.x == null) return;
+      minX = Math.min(minX, n.x - 100); maxX = Math.max(maxX, n.x + 100);
+      minY = Math.min(minY, n.y - 90); maxY = Math.max(maxY, n.y + 90);
+    });
+    if (minX === Infinity) return;
+    var aspect = r.width / r.height, bw = maxX - minX, bh = maxY - minY;
+    var w = Math.max(bw, bh * aspect), h = w / aspect;
+    VB.x = (minX + maxX) / 2 - w / 2; VB.y = (minY + maxY) / 2 - h / 2; VB.w = w; VB.h = h;
+    applyVB();
+  }
+  window.addEventListener('resize', function () { if (isSim()) fitPlan(); });
   function zoom(f) {
     var cx = VB.x + VB.w / 2, cy = VB.y + VB.h / 2;
     var nw = clamp(VB.w * f, 500, 1800), k = nw / VB.w;
@@ -1839,8 +1872,10 @@
       : 'Glissez un appareil pour le déplacer. Clic droit sur un câble pour le supprimer.';
   }
   function setSim(on) {
+    if (on) savedVB = { x: VB.x, y: VB.y, w: VB.w, h: VB.h };
     document.body.classList.toggle('sim', on);
     if (!on) WINS = [];
+    if (on) fitPlan(); else if (savedVB) { VB.x = savedVB.x; VB.y = savedVB.y; VB.w = savedVB.w; VB.h = savedVB.h; applyVB(); }
     $('btnSim').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('btnConcept').setAttribute('aria-pressed', on ? 'false' : 'true');
     if (on) { pending = null; mode = 'select'; setStatus('Mode simulation : le plan est verrouillé. Utilisez le terminal.'); }
