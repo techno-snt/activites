@@ -278,3 +278,30 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .sw-free { background: #ffffff; border-color: #64748b; }
 .sw-nocable { background: #fff1f2; border-color: #dc2626; }
 .sw-todo { background: #fef3c7; border-color: #d97706; }
+
+/* Zone des bureaux (simulation) : séparée du plan */
+.desk-zone { flex: 0 0 auto; display: flex; gap: 12px; overflow-x: auto; padding: 10px 12px; background: #eaf0fa; border-top: 1px solid var(--line); max-height: 300px; }
+.desk-zone[hidden] { display: none; }
+.dwin { flex: 0 0 320px; background: #ffffff; border: 1px solid #94a3b8; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(15, 27, 61, .18); display: flex; flex-direction: column; }
+.dwin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #1e3a8a; color: #ffffff; padding: 6px 10px; font-size: .85rem; font-weight: 700; }
+.dwin-close { background: none; border: 0; color: #ffffff; font-size: 1.1rem; cursor: pointer; padding: 0 4px; border-radius: 6px; }
+.dwin-close:focus-visible { outline: 2px solid #ffffff; }
+.dwin-body { padding: 10px; overflow: auto; max-height: 240px; }
+.desk-icons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.desk-icon { display: flex; flex-direction: column; align-items: center; gap: 4px; background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; cursor: pointer; font: inherit; font-size: .74rem; color: var(--ink); }
+.desk-icon:hover { border-color: var(--blue); }
+.desk-icon .tile { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: #ffffff; font-weight: 700; font-size: .8rem; background: #2563eb; }
+.desk-icon .tile.cmd { background: #111827; }
+.desk-icon .tile.inst { background: #16a34a; }
+.desk-icon .tile.srv { background: #6b3fc0; }
+.desk-icon .tile.net { background: #0891b2; }
+.sw-cols { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; align-items: start; }
+.sw-cols h4 { margin: 0 0 6px; font-size: .8rem; color: var(--blue); }
+.sw-cols ul { list-style: none; margin: 0; padding: 6px; border: 1px solid var(--line); border-radius: 8px; min-height: 150px; }
+.sw-cols li { padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: .82rem; }
+.sw-cols li:hover { background: #f1f5f9; }
+.sw-cols li[aria-selected="true"] { background: #dbeafe; font-weight: 700; }
+.sw-cols .arrows { display: flex; flex-direction: column; gap: 8px; padding-top: 30px; }
+.sw-cols .arrows button { min-height: 36px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; cursor: pointer; font-size: 1rem; }
+.dwin-apply { margin-top: 10px; width: 100%; min-height: 40px; border: 0; border-radius: 10px; background: var(--blue); color: #ffffff; font-weight: 700; cursor: pointer; }
+.dwin-note { font-size: .8rem; color: var(--muted); margin: 8px 0 0; max-width: none; }

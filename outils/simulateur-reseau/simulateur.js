@@ -221,6 +221,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var svg = $('canvas'), layerLinks = $('layerLinks'), layerNodes = $('layerNodes'), layerPk = $('layerPk');
   var statusEl = $('status'), propsEl = $('props'), termHost = $('termHost'), termOut = $('termOut'), termForm = $('termForm'), cmdInput = $('cmd');
+  var WINS = [], wseq = 0, deskZone = $('deskZone');
   var mode = 'select', selected = null, pending = null, drag = null, busy = false, OUT = {};
   var BLOCKS = [], selBlock = null, bdrag = null, rdrag = null, layerBlocks = $('layerBlocks'), layerHandles = $('layerHandles');
   var fid = 0;
@@ -503,6 +504,8 @@
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
       g.addEventListener('click', function () { if (!skipClick && mode !== 'select') clickNode(n); });
+      // En simulation, le double-clic sur un ordinateur ouvre son bureau dans la zone dédiée
+      g.addEventListener('dblclick', function () { if (isSim()) openWin('desk', n.id); });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
@@ -656,6 +659,7 @@
     syncModeButtons();
     updateBadge();
     updateLegend();
+    renderDesk();
   }
 
   function toSvg(e) {
@@ -848,8 +852,8 @@
     var sl = document.createElement('p'); sl.className = 'area-label'; sl.textContent = 'Services fournis';
     propsEl.appendChild(sl);
     var roles = [
-      { key: 'web', label: 'Serveur web', on: function () { n.web = true; if (!n.siteName) n.siteName = SITE; }, off: function () { n.web = false; } },
-      { key: 'dns', label: 'Serveur DNS', on: function () { n.dnsSvc = true; if (!n.records) n.records = {}; }, off: function () { n.dnsSvc = false; } },
+      { key: 'web', sw: 'web', label: 'Serveur web', on: function () { n.web = true; if (!n.siteName) n.siteName = SITE; }, off: function () { n.web = false; } },
+      { key: 'dns', sw: 'dns', label: 'Serveur DNS', on: function () { n.dnsSvc = true; if (!n.records) n.records = {}; }, off: function () { n.dnsSvc = false; } },
       { key: 'dhcp', label: 'Serveur DHCP', on: function () { n.dhcpSvc = true; if (!n.pool) n.pool = { start: '', end: '' }; if (n.dhcpGw === undefined) n.dhcpGw = ''; if (n.dhcpDns === undefined) n.dhcpDns = ''; if (!n.leases) n.leases = {}; }, off: function () { n.dhcpSvc = false; } }
     ];
     roles.forEach(function (r) {
@@ -857,7 +861,8 @@
       var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid);
       cb.checked = !!n[r.key === 'web' ? 'web' : r.key === 'dns' ? 'dnsSvc' : 'dhcpSvc'];
       cb.addEventListener('change', function () {
-        if (cb.checked) r.on(); else r.off();
+        if (r.sw) setSoftware(n, r.sw, cb.checked);
+        else if (cb.checked) r.on(); else r.off();
         setStatus(cb.checked ? r.label + ' activé.' : r.label + ' désactivé.');
         draw(); refresh();
       });
@@ -1008,6 +1013,147 @@
     propsEl.appendChild(del);
   }
 
+  /* ----- Logiciels et bureaux (simulation) : comme dans Filius ----- */
+  // Liste et noms repris de la fenêtre « Installation des logiciels » de Filius
+  var SOFT = [
+    { id: 'cmd', label: 'Ligne de commande', tile: '>_', cls: 'cmd' },
+    { id: 'fich', label: 'Explorateur de fichiers', tile: 'Fi', cls: 'net' },
+    { id: 'edit', label: 'Éditeur de textes', tile: 'Ed', cls: 'net' },
+    { id: 'img', label: 'Afficheur d\'images', tile: 'Im', cls: 'net' },
+    { id: 'fw', label: 'Parefeu', tile: 'Pf', cls: 'srv' },
+    { id: 'dns', label: 'Serveur DNS', tile: 'DNS', cls: 'srv' },
+    { id: 'gen', label: 'Serveur générique', tile: 'Gén', cls: 'srv' },
+    { id: 'cli', label: 'Client générique', tile: 'Cli', cls: 'net' },
+    { id: 'web', label: 'Serveur web', tile: 'Web', cls: 'srv' },
+    { id: 'nav', label: 'Navigateur web', tile: 'Nav', cls: 'net' },
+    { id: 'mailS', label: 'Serveur de messagerie', tile: 'Msg', cls: 'srv' },
+    { id: 'mailC', label: 'Client de messagerie', tile: 'Msg', cls: 'net' },
+    { id: 'p2p', label: 'Gnutella (P2P)', tile: 'P2P', cls: 'net' }
+  ];
+  var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
+  var hasSoft = function (n, id) { return (n.software || []).indexOf(id) >= 0; };
+  // Installer ou désinstaller un logiciel. Serveur web et Serveur DNS fixent les services du serveur.
+  function setSoftware(n, id, on) {
+    n.software = n.software || [];
+    var i = n.software.indexOf(id);
+    if (on && i < 0) n.software.push(id);
+    if (!on && i >= 0) n.software.splice(i, 1);
+    if (id === 'web') { n.web = on; if (on && !n.siteName) n.siteName = SITE; }
+    if (id === 'dns') { n.dnsSvc = on; if (on && !n.records) n.records = {}; }
+  }
+  function openWin(type, hostId) {
+    if (!isSim()) return;
+    var h = N(hostId);
+    if (!h || h.type === 'switch' || h.type === 'router') return;
+    var ex = WINS.find(function (w) { return w.type === type && w.host === hostId; });
+    if (!ex) {
+      ex = { id: ++wseq, type: type, host: hostId, pending: (h.software || []).slice(), sel: null };
+      WINS.push(ex);
+    }
+    renderDesk();
+  }
+  function closeWin(id) { WINS = WINS.filter(function (w) { return w.id !== id; }); renderDesk(); }
+  function openTerminal(hostId) {
+    refreshHosts();
+    termHost.value = hostId;
+    document.body.classList.add('term-open');
+    $('btnTerm').setAttribute('aria-pressed', 'true');
+    cmdInput.focus();
+  }
+  function buildDesk(w) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin'; win.setAttribute('aria-label', 'Bureau de ' + h.label);
+    var head = document.createElement('div'); head.className = 'dwin-head';
+    var title = document.createElement('span'); title.textContent = 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')';
+    var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-close'; close.textContent = '✕';
+    close.setAttribute('aria-label', 'Fermer le bureau'); close.addEventListener('click', function () { closeWin(w.id); });
+    head.appendChild(title); head.appendChild(close); win.appendChild(head);
+    var body = document.createElement('div'); body.className = 'dwin-body';
+    var grid = document.createElement('div'); grid.className = 'desk-icons';
+    var apps = [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }));
+    apps.forEach(function (a) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'desk-icon';
+      var t = document.createElement('span'); t.className = 'tile ' + (a.cls || ''); t.textContent = a.tile;
+      var l = document.createElement('span'); l.textContent = a.label;
+      b.appendChild(t); b.appendChild(l);
+      b.addEventListener('click', function () {
+        if (a.id === 'install') openWin('install', h.id);
+        else if (a.id === 'cmd') openTerminal(h.id);
+        else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
+      });
+      grid.appendChild(b);
+    });
+    body.appendChild(grid);
+    if (!(h.software || []).length) {
+      var note = document.createElement('p'); note.className = 'dwin-note';
+      note.textContent = 'Aucun logiciel installé. Ouvrez « Installation des logiciels » pour en ajouter.';
+      body.appendChild(note);
+    }
+    win.appendChild(body);
+    return win;
+  }
+  function buildInstall(w) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin'; win.setAttribute('aria-label', 'Installation des logiciels de ' + h.label);
+    var head = document.createElement('div'); head.className = 'dwin-head';
+    var title = document.createElement('span'); title.textContent = 'Installation des logiciels · ' + h.label;
+    var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-close'; close.textContent = '✕';
+    close.setAttribute('aria-label', 'Fermer'); close.addEventListener('click', function () { closeWin(w.id); });
+    head.appendChild(title); head.appendChild(close); win.appendChild(head);
+    var body = document.createElement('div'); body.className = 'dwin-body';
+    var cols = document.createElement('div'); cols.className = 'sw-cols';
+    function list(heading, ids, side) {
+      var col = document.createElement('div');
+      var hh = document.createElement('h4'); hh.textContent = heading; col.appendChild(hh);
+      var ul = document.createElement('ul'); ul.setAttribute('role', 'listbox'); ul.setAttribute('aria-label', heading);
+      ids.forEach(function (id) {
+        var s = softOf(id); if (!s) return;
+        var li = document.createElement('li'); li.textContent = s.label; li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', w.sel && w.sel.side === side && w.sel.id === id ? 'true' : 'false');
+        li.addEventListener('click', function () { w.sel = { side: side, id: id }; renderDesk(); });
+        ul.appendChild(li);
+      });
+      col.appendChild(ul);
+      return col;
+    }
+    var installed = w.pending;
+    var available = SOFT.map(function (s) { return s.id; }).filter(function (id) { return installed.indexOf(id) < 0; });
+    cols.appendChild(list('Installés', installed, 'L'));
+    var arr = document.createElement('div'); arr.className = 'arrows';
+    var up = document.createElement('button'); up.type = 'button'; up.textContent = '⬅'; up.title = 'Installer le logiciel sélectionné';
+    up.setAttribute('aria-label', 'Installer');
+    up.addEventListener('click', function () {
+      if (!w.sel || w.sel.side !== 'R') { setStatus('Sélectionnez un logiciel dans « Disponibles ».'); return; }
+      w.pending.push(w.sel.id); w.sel = null; renderDesk();
+    });
+    var down = document.createElement('button'); down.type = 'button'; down.textContent = '➡'; down.title = 'Désinstaller le logiciel sélectionné';
+    down.setAttribute('aria-label', 'Désinstaller');
+    down.addEventListener('click', function () {
+      if (!w.sel || w.sel.side !== 'L') { setStatus('Sélectionnez un logiciel dans « Installés ».'); return; }
+      w.pending = w.pending.filter(function (id) { return id !== w.sel.id; }); w.sel = null; renderDesk();
+    });
+    arr.appendChild(up); arr.appendChild(down);
+    cols.appendChild(arr);
+    cols.appendChild(list('Disponibles', available, 'R'));
+    body.appendChild(cols);
+    var apply = document.createElement('button'); apply.type = 'button'; apply.className = 'dwin-apply'; apply.textContent = 'Appliquer les modifications';
+    apply.addEventListener('click', function () {
+      SOFT.forEach(function (s) { setSoftware(h, s.id, w.pending.indexOf(s.id) >= 0); });
+      setStatus('Logiciels mis à jour sur ' + h.label + '.');
+      refresh();
+    });
+    body.appendChild(apply);
+    win.appendChild(body);
+    return win;
+  }
+  function renderDesk() {
+    WINS = WINS.filter(function (w) { return N(w.host); });
+    deskZone.textContent = '';
+    deskZone.hidden = !WINS.length || !isSim();
+    if (deskZone.hidden) return;
+    WINS.forEach(function (w) { deskZone.appendChild(w.type === 'desk' ? buildDesk(w) : buildInstall(w)); });
+  }
+
   /* ----- Terminal ----- */
   function hosts() { return NODES.filter(function (n) { return !n.hidden && n.type !== 'switch' && n.type !== 'router'; }); }
   function refreshHosts() {
@@ -1114,6 +1260,10 @@
   async function runCommand(line) {
     var h = N(termHost.value);
     if (!h) { setStatus('Ajoutez une machine pour utiliser le terminal.'); return; }
+    if (!hasSoft(h, 'cmd')) {
+      printTo(h.id, 'La ligne de commande n\'est pas installée sur ' + h.label + '. Double-cliquez l\'ordinateur en simulation, puis installez-la.');
+      return;
+    }
     printTo(h.id, '> ' + line);
     var parts = line.trim().split(/\s+/);
     var cmd = (parts[0] || '').toLowerCase();
@@ -1156,14 +1306,14 @@
   /* ----- Scénario, vider, export, import ----- */
   function loadScenario() {
     NODES = [
-      { id: 'PC', kind: 'pc', type: 'pc', label: 'Ordinateur', ifaces: [{ ip: '' }], gw: '', dns: '', x: 100, y: 110 },
-      { id: 'NB', kind: 'notebook', type: 'notebook', label: 'Portable', ifaces: [{ ip: '' }], gw: '192.168.0.254', dns: '', x: 100, y: 300 },
+      { id: 'PC', kind: 'pc', type: 'pc', label: 'Ordinateur', ifaces: [{ ip: '' }], gw: '', dns: '', software: ['cmd'], x: 100, y: 110 },
+      { id: 'NB', kind: 'notebook', type: 'notebook', label: 'Portable', ifaces: [{ ip: '' }], gw: '192.168.0.254', dns: '', software: ['cmd'], x: 100, y: 300 },
       { id: 'SW1', kind: 'switch', type: 'switch', label: 'Switch', x: 250, y: 205 },
       { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 400, y: 205 },
       { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch opérateur', x: 570, y: 205 },
       { id: 'OP', kind: 'router', type: 'router', label: 'Routeur opérateur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
-      { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
-      { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, x: 910, y: 205 }
+      { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
+      { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
     ];
     LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
     var L =function (a, b) { addLink(freeTarget(a), freeTarget(b)); };
@@ -1304,6 +1454,7 @@
   }
   function setSim(on) {
     document.body.classList.toggle('sim', on);
+    if (!on) WINS = [];
     $('btnSim').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('btnConcept').setAttribute('aria-pressed', on ? 'false' : 'true');
     if (on) { pending = null; mode = 'select'; setStatus('Mode simulation : le plan est verrouillé. Utilisez le terminal.'); }
