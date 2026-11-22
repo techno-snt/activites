@@ -382,3 +382,6 @@ body.sim .term { display: none !important; }
 .trames-table { font-size: .72rem; margin: 0; }
 .trames-table th, .trames-table td { white-space: nowrap; }
 .trames-empty { color: var(--muted); font-style: italic; white-space: normal !important; }
+/* Port traversé par un traceroute : couleur du réseau de l'interface */
+.port.trace circle { stroke: var(--c, var(--blue)); stroke-width: 5; fill: #ffffff; animation: none; }
+.port.trace circle + text, .port.trace text { fill: var(--c, var(--blue)); font-weight: 700; }

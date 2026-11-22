@@ -1566,13 +1566,21 @@
   }
 
   // Adresse de l'interface d'un appareil par laquelle arrive une trame venant de prevId
-  function ifaceFrom(node, prevId) {
+  // Indice de l'interface d'un appareil par laquelle arrive une trame venant de prevId
+  function ifaceIndexFrom(node, prevId) {
     if (node.type === 'router') {
       for (var i = 0; i < node.ifaces.length; i++) {
-        if (node.ifaces[i].ip && linkAt(node.id, i) && segment(node.id, i).some(function (e) { return e.n === prevId; })) return node.ifaces[i].ip;
+        if (node.ifaces[i].ip && linkAt(node.id, i) && segment(node.id, i).some(function (e) { return e.n === prevId; })) return i;
       }
     }
-    return node.ifaces[0].ip;
+    return 0;
+  }
+  // Met en évidence un port (aux couleurs de son réseau) le temps d'un tracé
+  function flashPort(nodeId, idx) {
+    var pg = layerNodes.querySelector('.port[data-vis="' + nodeId + '"][data-idx="' + idx + '"]');
+    if (!pg) return;
+    pg.classList.add('trace');
+    setTimeout(function () { pg.classList.remove('trace'); }, 1800);
   }
   async function cmdTrace(h, target) {
     var r = resolveCore(h.id, target);
@@ -1584,8 +1592,11 @@
     printTo(h.id, 'traceroute vers ' + target + ' (' + r.ip + ')');
     for (var k = 1; k < hops.length; k++) {
       var node = N(hops[k]);
-      var ip = (k === hops.length - 1 && rr.ok) ? r.ip : ifaceFrom(node, hops[k - 1]);
-      printTo(h.id, k + '  ' + ip + '  (' + node.label + ')  ' + latency([hops.slice(0, k + 1)]) + ' ms');
+      var idx = ifaceIndexFrom(node, hops[k - 1]);
+      var ip = (k === hops.length - 1 && rr.ok) ? r.ip : (node.ifaces[idx] ? node.ifaces[idx].ip : '');
+      if (node.type === 'router') flashPort(node.id, idx);
+      var via = node.type === 'router' ? ' · interface ' + (idx + 1) : '';
+      printTo(h.id, k + '  ' + ip + '  (' + node.label + via + ')  ' + latency([hops.slice(0, k + 1)]) + ' ms');
     }
     if (!rr.ok) printTo(h.id, 'Arrêt : ' + rr.msg);
     else printTo(h.id, 'Destination atteinte en ' + (hops.length - 1) + ' saut(s).');
