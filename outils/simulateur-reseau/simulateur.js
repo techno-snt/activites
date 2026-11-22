@@ -254,8 +254,8 @@
       var k = w.type === 'desk' ? 0 : WINS.filter(function (x) { return x.host === w.host && x.type !== 'desk'; }).indexOf(w) % 5;
       var W = box.clientWidth || 780; // l'écran n'est pas encore dans la page au moment de sa construction
       if (w.type === 'desk') { w.x = 12; w.y = 12; }
-      else if (w.type === 'term') { w.x = Math.max(8, W - 432 - k * 24); w.y = 40 + k * 24; }
-      else { w.x = Math.max(8, Math.round((W - 460) / 2) - 60 + k * 24); w.y = 60 + k * 24; }
+      else if (w.type === 'term') { w.x = Math.max(8, W - 432 - k * 24); w.y = 120 + k * 20; }
+      else { w.x = Math.max(8, Math.round((W - 460) / 2) + k * 24); w.y = 120 + k * 20; }
     }
     win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
     if (w.w) { win.style.width = w.w + 'px'; win.style.height = w.h + 'px'; }
@@ -303,7 +303,6 @@
     switch: { label: 'Switch', type: 'switch' },
     router: { label: 'Routeur', type: 'router' },
     wifi: { label: 'Routeur Wi-Fi', type: 'router', wifi: true },
-    server: { label: 'Serveur', type: 'server' }
   };
 
   function el(tag, attrs, parent) {
@@ -724,6 +723,15 @@
 
   function draw() { buildNetColours(); drawBlocks(); drawLinks(); drawNodes(); }
 
+  // Plans d'avant : un « serveur » devient un ordinateur avec ses services installés
+  function upgradeNode(n) {
+    if (n.type !== 'server') return;
+    n.type = 'pc'; n.kind = 'pc';
+    n.software = n.software || [];
+    if (n.web && n.software.indexOf('web') < 0) n.software.push('web');
+    if (n.dnsSvc && n.software.indexOf('dns') < 0) n.software.push('dns');
+    if (n.dhcpSvc && n.software.indexOf('dhcp') < 0) n.software.push('dhcp');
+  }
   function refresh() {
     syncWifi();
     draw();
@@ -913,93 +921,62 @@
   }
 
   // Un serveur peut tenir plusieurs rôles à la fois (web, DNS, DHCP) : on coche les services fournis
-  function renderServerProps(n) {
-    var sh = document.createElement('p'); sh.className = 'help';
-    sh.textContent = 'Un serveur peut fournir plusieurs services à la fois : cochez ceux qu\'il assure.';
-    propsEl.appendChild(sh);
-    field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
-    field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
-    field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
-    field(propsEl, 'DNS utilisé', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur DNS interrogé par cette machine pour traduire un nom en adresse IP.');
-
-    var sl = document.createElement('p'); sl.className = 'area-label'; sl.textContent = 'Services fournis';
-    propsEl.appendChild(sl);
-    var roles = [
-      { key: 'web', sw: 'web', label: 'Serveur web', on: function () { n.web = true; if (!n.siteName) n.siteName = SITE; }, off: function () { n.web = false; } },
-      { key: 'dns', sw: 'dns', label: 'Serveur DNS', on: function () { n.dnsSvc = true; if (!n.records) n.records = {}; }, off: function () { n.dnsSvc = false; } },
-      { key: 'dhcp', label: 'Serveur DHCP', on: function () { n.dhcpSvc = true; if (!n.pool) n.pool = { start: '', end: '' }; if (n.dhcpGw === undefined) n.dhcpGw = ''; if (n.dhcpDns === undefined) n.dhcpDns = ''; if (!n.leases) n.leases = {}; }, off: function () { n.dhcpSvc = false; } }
-    ];
-    roles.forEach(function (r) {
-      var wrap = document.createElement('div'); wrap.className = 'field check';
-      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid);
-      cb.checked = !!n[r.key === 'web' ? 'web' : r.key === 'dns' ? 'dnsSvc' : 'dhcpSvc'];
-      cb.addEventListener('change', function () {
-        if (r.sw) setSoftware(n, r.sw, cb.checked);
-        else if (cb.checked) r.on(); else r.off();
-        setStatus(cb.checked ? r.label + ' activé.' : r.label + ' désactivé.');
-        draw(); refresh();
+  // Réglages des services installés (ouverts depuis le bureau de la machine)
+  function webFields(n, parent) {
+    field(parent, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
+  }
+  function dnsFields(n, parent) {
+    var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
+    var ta = document.createElement('textarea');
+    var show = function () { ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n'); };
+    show();
+    ta.addEventListener('change', function () {
+      var rec = {}, bad = null;
+      ta.value.split('\n').forEach(function (line) {
+        var parts = line.trim().split(/\s+/);
+        if (parts.length < 2 || !parts[0]) return;
+        if (!ipOK(parts[1])) { bad = parts[1]; return; }
+        rec[parts[0]] = parts[1];
       });
-      var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = r.label;
-      wrap.appendChild(cb); wrap.appendChild(cl); propsEl.appendChild(wrap);
+      if (bad) { setStatus('Adresse invalide dans les noms : ' + bad); show(); return; }
+      n.records = rec; setStatus('Noms enregistrés.');
     });
-
-    if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
-
-    if (n.dnsSvc) {
-      var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
-      var ta = document.createElement('textarea');
-      ta.rows = 3; ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n');
-      ta.addEventListener('change', function () {
-        var rec = {}, bad = null;
-        ta.value.split('\n').forEach(function (line) {
-          var parts = line.trim().split(/\s+/);
-          if (parts.length < 2 || !parts[0]) return;
-          if (!ipOK(parts[1])) { bad = parts[1]; return; }
-          rec[parts[0]] = parts[1];
-        });
-        if (bad) { setStatus('Adresse invalide dans les noms : ' + bad); ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n'); return; }
-        n.records = rec; setStatus('Noms enregistrés.');
-      });
-      propsEl.appendChild(lab); propsEl.appendChild(ta);
-    }
-
-    if (n.dhcpSvc) {
-      var dlab = document.createElement('p'); dlab.className = 'area-label'; dlab.textContent = 'Service DHCP';
-      propsEl.appendChild(dlab);
-      var dhelp = document.createElement('p'); dhelp.className = 'help';
-      dhelp.textContent = 'Le serveur distribue les adresses de sa plage aux machines de son réseau local qui le demandent.';
-      propsEl.appendChild(dhelp);
-      var poolChange = function (key) {
-        return function (inp) {
-          var v = inp.value.trim();
-          if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
-          n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
-          draw();
-        };
+    parent.appendChild(lab); parent.appendChild(ta);
+  }
+  function dhcpFields(n, parent) {
+    var dhelp = document.createElement('p'); dhelp.className = 'help';
+    dhelp.textContent = 'Le serveur distribue les adresses de sa plage aux machines de son réseau local qui le demandent.';
+    parent.appendChild(dhelp);
+    var poolChange = function (key) {
+      return function (inp) {
+        var v = inp.value.trim();
+        if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
+        n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
+        draw();
       };
-      field(propsEl, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
-      field(propsEl, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
-      field(propsEl, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
-      field(propsEl, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
-      var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
-      propsEl.appendChild(lt);
-      var lids = Object.keys(n.leases);
-      if (!lids.length) {
-        var none = document.createElement('p'); none.className = 'help';
-        none.textContent = 'Aucune adresse distribuée pour l\'instant.';
-        propsEl.appendChild(none);
-      } else {
-        var lta = document.createElement('table'); lta.className = 'rtable';
-        var lh = lta.createTHead().insertRow();
-        ['Machine', 'Adresse'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; lh.appendChild(th); });
-        var lb = lta.createTBody();
-        lids.forEach(function (id) {
-          var tr = lb.insertRow();
-          var mach = N(id);
-          [mach ? mach.label : id, n.leases[id]].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
-        });
-        propsEl.appendChild(lta);
-      }
+    };
+    field(parent, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
+    field(parent, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
+    field(parent, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
+    field(parent, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
+    var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
+    parent.appendChild(lt);
+    var lids = Object.keys(n.leases || {});
+    if (!lids.length) {
+      var none = document.createElement('p'); none.className = 'help';
+      none.textContent = 'Aucune adresse distribuée pour l\'instant.';
+      parent.appendChild(none);
+    } else {
+      var lta = document.createElement('table'); lta.className = 'rtable';
+      var lh = lta.createTHead().insertRow();
+      ['Machine', 'Adresse'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; lh.appendChild(th); });
+      var lb = lta.createTBody();
+      lids.forEach(function (id) {
+        var tr = lb.insertRow();
+        var mach = N(id);
+        [mach ? mach.label : id, n.leases[id]].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+      });
+      parent.appendChild(lta);
     }
   }
 
@@ -1052,9 +1029,10 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-    } else if (n.type === 'server') {
-      renderServerProps(n);
     } else {
+      var sv = document.createElement('p'); sv.className = 'help';
+      sv.textContent = 'Les services (serveur web, DNS, DHCP) s\'installent sur le bureau de la machine, en simulation (double-clic).';
+      propsEl.appendChild(sv);
       var f0 = n.ifaces[0];
       var wwrap = document.createElement('div'); wwrap.className = 'field check';
       var wcb = document.createElement('input'); wcb.type = 'checkbox'; wcb.id = 'f' + (++fid); wcb.checked = !!f0.wifi;
@@ -1113,6 +1091,7 @@
     { id: 'img', label: 'Afficheur d\'images', tile: 'Im', cls: 'net' },
     { id: 'fw', label: 'Parefeu', tile: 'Pf', cls: 'srv' },
     { id: 'dns', label: 'Serveur DNS', tile: 'DNS', cls: 'srv' },
+    { id: 'dhcp', label: 'Serveur DHCP', tile: 'DHCP', cls: 'srv' },
     { id: 'gen', label: 'Serveur générique', tile: 'Gén', cls: 'srv' },
     { id: 'cli', label: 'Client générique', tile: 'Cli', cls: 'net' },
     { id: 'web', label: 'Serveur web', tile: 'Web', cls: 'srv' },
@@ -1131,6 +1110,10 @@
     if (!on && i >= 0) n.software.splice(i, 1);
     if (id === 'web') { n.web = on; if (on && !n.siteName) n.siteName = SITE; }
     if (id === 'dns') { n.dnsSvc = on; if (on && !n.records) n.records = {}; }
+    if (id === 'dhcp') {
+      n.dhcpSvc = on;
+      if (on) { if (!n.pool) n.pool = { start: '', end: '' }; if (n.dhcpGw === undefined) n.dhcpGw = ''; if (n.dhcpDns === undefined) n.dhcpDns = ''; if (!n.leases) n.leases = {}; }
+    }
   }
   function openWin(type, hostId) {
     if (!isSim()) return;
@@ -1169,6 +1152,21 @@
     return head;
   }
   // Bureau d'un ordinateur : fond, icônes, barre des tâches (comme un vrai écran)
+  // Réglage d'un service installé, dans le bureau
+  function buildSvc(w, box) {
+    var h = N(w.host);
+    var kind = w.type.slice(4);
+    var titles = { web: 'Serveur web', dns: 'Serveur DNS', dhcp: 'Serveur DHCP' };
+    var win = document.createElement('section'); win.className = 'dwin app svc'; win.setAttribute('aria-label', titles[kind] + ' de ' + h.label);
+    win.appendChild(winHead(w, titles[kind] + ' · ' + h.label, false));
+    var body = document.createElement('div'); body.className = 'dwin-body';
+    if (kind === 'web') webFields(h, body);
+    if (kind === 'dns') dnsFields(h, body);
+    if (kind === 'dhcp') dhcpFields(h, body);
+    win.appendChild(body);
+    decorateWin(win, w, box);
+    return win;
+  }
   // Application « Ligne de commande » dans le bureau d'une machine
   function buildTerm(w, box) {
     var h = N(w.host);
@@ -1221,6 +1219,7 @@
       b.addEventListener('click', function () {
         if (a.id === 'install') openWin('install', h.id);
         else if (a.id === 'cmd') openWin('term', h.id);
+        else if (a.id === 'web' || a.id === 'dns' || a.id === 'dhcp') openWin('svc-' + a.id, h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
       grid.appendChild(b);
@@ -1240,7 +1239,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : buildInstall(a, screen));
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
@@ -1479,8 +1478,8 @@
       { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 400, y: 205 },
       { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch opérateur', x: 570, y: 205 },
       { id: 'OP', kind: 'router', type: 'router', label: 'Routeur opérateur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
-      { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
-      { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
+      { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
+      { id: 'WEB', kind: 'pc', type: 'pc', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
     ];
     LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
     var L =function (a, b) { addLink(freeTarget(a), freeTarget(b)); };
@@ -1507,7 +1506,7 @@
       try {
         var data = JSON.parse(reader.result);
         if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('format');
-        NODES = data.nodes; LINKS = data.links.filter(function (l) { return !l.wireless; }); BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
+        NODES = data.nodes; NODES.forEach(upgradeNode); LINKS = data.links.filter(function (l) { return !l.wireless; }); BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
         selBlock = null; OUT = {}; selected = null; pending = null;
         // Les nouveaux identifiants ne doivent pas reprendre ceux du plan importé
         NODES.concat(BLOCKS).forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });
