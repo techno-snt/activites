@@ -248,8 +248,15 @@
   var statusEl = $('status'), propsEl = $('props'), termHost = $('termHost'), termOut = $('termOut'), termForm = $('termForm'), cmdInput = $('cmd');
   var WINS = [], wseq = 0, zseq = 10, deskZone = $('deskZone');
   // Fenêtre flottante : position mémorisée, déplacement par l'en-tête, passage au premier plan au clic
-  function decorateWin(win, w) {
-    if (w.x === undefined) { var k = WINS.indexOf(w) % 6; w.x = w.type === 'desk' ? 12 : 16 + k * 26; w.y = w.type === 'desk' ? 12 : 16 + k * 26; }
+  function decorateWin(win, w, box) {
+    if (w.x === undefined) {
+      // Position par défaut : bureau dans le plan ; applications dans l'écran, à droite (terminal) ou au centre (installation)
+      var k = w.type === 'desk' ? 0 : WINS.filter(function (x) { return x.host === w.host && x.type !== 'desk'; }).indexOf(w) % 5;
+      var W = box.clientWidth || 780; // l'écran n'est pas encore dans la page au moment de sa construction
+      if (w.type === 'desk') { w.x = 12; w.y = 12; }
+      else if (w.type === 'term') { w.x = Math.max(8, W - 432 - k * 24); w.y = 40 + k * 24; }
+      else { w.x = Math.max(8, Math.round((W - 460) / 2) - 60 + k * 24); w.y = 60 + k * 24; }
+    }
     win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
     if (w.w) { win.style.width = w.w + 'px'; win.style.height = w.h + 'px'; }
     // Poignée en bas à droite : redimensionner la fenêtre pour suivre les paquets sur le plan
@@ -260,7 +267,7 @@
       var sx = e.clientX, sy = e.clientY, ow = win.offsetWidth, oh = win.offsetHeight;
       grip.setPointerCapture(e.pointerId);
       var mv = function (ev) {
-        var maxW = deskZone.clientWidth - w.x - 4, maxH = deskZone.clientHeight - w.y - 4;
+        var maxW = box.clientWidth - w.x - 4, maxH = box.clientHeight - w.y - 4;
         w.w = Math.max(320, Math.min(maxW, ow + ev.clientX - sx));
         w.h = Math.max(220, Math.min(maxH, oh + ev.clientY - sy));
         win.style.width = w.w + 'px'; win.style.height = w.h + 'px';
@@ -1137,19 +1144,16 @@
     }
     renderDesk();
   }
-  function closeWin(id) { WINS = WINS.filter(function (w) { return w.id !== id; }); renderDesk(); }
-  function openTerminal(hostId) {
-    refreshHosts();
-    termHost.value = hostId;
-    document.body.classList.add('term-open');
-    $('btnTerm').setAttribute('aria-pressed', 'true');
-    cmdInput.focus();
+  function closeWin(id) {
+    var c = WINS.find(function (w) { return w.id === id; });
+    WINS = WINS.filter(function (w) { return w.id !== id && !(c && c.type === 'desk' && w.host === c.host && w.type !== 'desk'); });
+    renderDesk();
   }
   var ICON_MIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
   var ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   var ICON_SCREEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg>';
   // En-tête de fenêtre : titre, réduire (vers la barre du bas), fermer
-  function winHead(w, title) {
+  function winHead(w, title, canMin) {
     var head = document.createElement('div'); head.className = 'dwin-head';
     var t = document.createElement('span'); t.textContent = title;
     var ctl = document.createElement('div'); ctl.className = 'dwin-ctl';
@@ -1159,11 +1163,49 @@
     var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-btn'; close.innerHTML = ICON_CLOSE;
     close.setAttribute('aria-label', 'Fermer'); close.title = 'Fermer';
     close.addEventListener('click', function () { closeWin(w.id); });
-    ctl.appendChild(min); ctl.appendChild(close);
+    if (canMin !== false) ctl.appendChild(min);
+    ctl.appendChild(close);
     head.appendChild(t); head.appendChild(ctl);
     return head;
   }
   // Bureau d'un ordinateur : fond, icônes, barre des tâches (comme un vrai écran)
+  // Application « Ligne de commande » dans le bureau d'une machine
+  function buildTerm(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app term-app'; win.setAttribute('data-host', h.id);
+    win.setAttribute('aria-label', 'Ligne de commande de ' + h.label);
+    win.appendChild(winHead(w, 'Ligne de commande · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')', false));
+    var body = document.createElement('div'); body.className = 'dwin-body term-body';
+    var out = document.createElement('pre'); out.className = 'term-app-out'; out.tabIndex = 0; out.setAttribute('aria-label', 'Sortie de la ligne de commande');
+    var form = document.createElement('form'); form.className = 'term-app-form';
+    var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
+    inp.placeholder = 'ping 192.168.0.10'; inp.setAttribute('aria-label', 'Commande'); inp.value = w.draft || '';
+    inp.addEventListener('input', function () { w.draft = inp.value; });
+    var go = document.createElement('button'); go.type = 'submit'; go.textContent = 'Lancer';
+    form.appendChild(inp); form.appendChild(go);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var line = inp.value; inp.value = ''; w.draft = '';
+      refreshHosts(); termHost.value = h.id;
+      runCommand(line);
+    });
+    body.appendChild(out); body.appendChild(form);
+    win.appendChild(body);
+    fillTermApp(out, h.id);
+    decorateWin(win, w, box);
+    return win;
+  }
+  function fillTermApp(pre, hostId) {
+    var lines = OUT[hostId] || [];
+    pre.textContent = lines.length ? lines.join('\n') : 'Tapez « aide » pour la liste des commandes.';
+    pre.scrollTop = pre.scrollHeight;
+  }
+  // Mise à jour des fenêtres de ligne de commande ouvertes sur cette machine
+  function updateTermApps(hostId) {
+    deskZone.querySelectorAll('.term-app').forEach(function (t) {
+      if (t.getAttribute('data-host') === hostId) fillTermApp(t.querySelector('pre'), hostId);
+    });
+  }
   function buildDesk(w) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin desk'; win.setAttribute('aria-label', 'Bureau de ' + h.label);
@@ -1178,7 +1220,7 @@
       b.appendChild(t); b.appendChild(l);
       b.addEventListener('click', function () {
         if (a.id === 'install') openWin('install', h.id);
-        else if (a.id === 'cmd') openTerminal(h.id);
+        else if (a.id === 'cmd') openWin('term', h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
       grid.appendChild(b);
@@ -1196,13 +1238,17 @@
     bar.appendChild(start); bar.appendChild(net); bar.appendChild(ip);
     screen.appendChild(bar);
     win.appendChild(screen);
-    decorateWin(win, w);
+    // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
+    WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : buildInstall(a, screen));
+    });
+    decorateWin(win, w, deskZone);
     return win;
   }
-  function buildInstall(w) {
+  function buildInstall(w, box) {
     var h = N(w.host);
-    var win = document.createElement('section'); win.className = 'dwin'; win.setAttribute('aria-label', 'Installation des logiciels de ' + h.label);
-    win.appendChild(winHead(w, 'Installation des logiciels · ' + h.label));
+    var win = document.createElement('section'); win.className = 'dwin app install'; win.setAttribute('aria-label', 'Installation des logiciels de ' + h.label);
+    win.appendChild(winHead(w, 'Installation des logiciels · ' + h.label, false));
     var body = document.createElement('div'); body.className = 'dwin-body';
     var cols = document.createElement('div'); cols.className = 'sw-cols';
     function list(heading, ids, side) {
@@ -1247,7 +1293,7 @@
     });
     body.appendChild(apply);
     win.appendChild(body);
-    decorateWin(win, w);
+    decorateWin(win, w, box);
     return win;
   }
   function renderDesk() {
@@ -1255,15 +1301,16 @@
     deskZone.textContent = '';
     deskZone.hidden = !WINS.length || !isSim();
     if (deskZone.hidden) return;
-    WINS.filter(function (w) { return !w.min; }).forEach(function (w) { deskZone.appendChild(w.type === 'desk' ? buildDesk(w) : buildInstall(w)); });
-    var reduced = WINS.filter(function (w) { return w.min; });
+    // Seuls les bureaux sont au premier niveau ; leurs applications sont dans leur écran
+    WINS.filter(function (w) { return w.type === 'desk' && !w.min; }).forEach(function (w) { deskZone.appendChild(buildDesk(w)); });
+    var reduced = WINS.filter(function (w) { return w.type === 'desk' && w.min; });
     if (reduced.length) {
       var dock = document.createElement('div'); dock.className = 'desk-dock'; dock.setAttribute('aria-label', 'Fenêtres réduites');
       reduced.forEach(function (w) {
         var h = N(w.host);
         var b = document.createElement('button'); b.type = 'button'; b.className = 'dock-item';
         b.innerHTML = ICON_SCREEN;
-        var l = document.createElement('span'); l.textContent = (w.type === 'desk' ? 'Bureau · ' : 'Installation · ') + h.label;
+        var l = document.createElement('span'); l.textContent = 'Bureau · ' + h.label;
         b.appendChild(l);
         b.title = 'Restaurer';
         b.addEventListener('click', function () { w.min = false; w.z = ++zseq; renderDesk(); });
@@ -1288,6 +1335,7 @@
   }
   function printTo(hostId, text) {
     (OUT[hostId] = OUT[hostId] || []).push(text);
+    updateTermApps(hostId);
     if (termHost.value === hostId) renderTermOut();
   }
   function renderTermOut() {
