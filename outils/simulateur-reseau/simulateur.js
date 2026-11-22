@@ -188,6 +188,7 @@
   var svg = $('canvas'), layerLinks = $('layerLinks'), layerNodes = $('layerNodes'), layerPk = $('layerPk');
   var statusEl = $('status'), propsEl = $('props'), termHost = $('termHost'), termOut = $('termOut'), termForm = $('termForm'), cmdInput = $('cmd');
   var mode = 'select', selected = null, pending = null, drag = null, busy = false, OUT = {};
+  var BLOCKS = [], selBlock = null, bdrag = null, rdrag = null, layerBlocks = $('layerBlocks'), layerHandles = $('layerHandles');
   var fid = 0;
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -242,6 +243,7 @@
   }
   function addNode(kind) {
     if (isSim()) { setStatus('Plan verrouillé en mode simulation. Repassez en mode conception pour ajouter un appareil.'); return; }
+    if (kind === 'block') { addBlock(); return; }
     var p = freeSpot();
     var n = makeNode(kind, p.x, p.y);
     NODES.push(n);
@@ -392,7 +394,140 @@
     }
   }
 
-  function draw() { drawLinks(); drawNodes(); }
+  /* ----- Blocs nommés : une salle ou un réseau ----- */
+  function drawBlocks() {
+    layerBlocks.textContent = '';
+    layerHandles.textContent = '';
+    BLOCKS.forEach(function (b) {
+      var g = el('g', { class: 'block' + (selBlock === b.id ? ' sel' : ''), 'data-block': b.id, transform: 'translate(' + b.x + ',' + b.y + ')' }, layerBlocks);
+      el('rect', { x: 0, y: 0, width: b.w, height: b.h, rx: 14, class: 'block-box' }, g);
+      var tagW = Math.max(70, b.label.length * 8.4 + 24);
+      el('rect', { x: 14, y: -13, width: tagW, height: 26, rx: 13, class: 'block-tag' }, g);
+      var t = el('text', { x: 14 + tagW / 2, y: 5, 'text-anchor': 'middle', class: 'block-label' }, g);
+      t.textContent = b.label;
+      // La poignée est dans sa propre couche, au-dessus des appareils
+      var h = el('rect', { x: b.x + b.w - 18, y: b.y + b.h - 18, width: 14, height: 14, rx: 3, class: 'block-handle' }, layerHandles);
+      g.__handle = h;
+      g.addEventListener('pointerdown', function (e) { blockDown(e, b, g); });
+      g.addEventListener('pointermove', function (e) { blockMove(e); });
+      g.addEventListener('pointerup', function () { blockUp(); });
+      g.addEventListener('click', function () { if (mode === 'delete' && !isSim()) removeBlock(b.id); });
+      h.addEventListener('pointerdown', function (e) { resizeDown(e, b, g, h); });
+      h.addEventListener('pointermove', function (e) { resizeMove(e, b, g, h); });
+      h.addEventListener('pointerup', function () { resizeUp(); });
+    });
+  }
+  function blockDown(e, b, g) {
+    if (mode !== 'select' || isSim()) return;
+    e.preventDefault(); e.stopPropagation();
+    var p = toSvg(e);
+    var members = NODES.filter(function (n) { return !n.hidden && n.x > b.x && n.x < b.x + b.w && n.y > b.y && n.y < b.y + b.h; })
+      .map(function (n) { return { n: n, ox: n.x - b.x, oy: n.y - b.y }; });
+    bdrag = { b: b, g: g, dx: p.x - b.x, dy: p.y - b.y, members: members, sx: e.clientX, sy: e.clientY, moved: false, count: members.length };
+    selBlock = b.id; selected = null;
+    g.setPointerCapture(e.pointerId);
+  }
+  function blockMove(e) {
+    if (!bdrag) return;
+    var d = bdrag, p = toSvg(e);
+    if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 3) d.moved = true;
+    d.b.x = clamp(p.x - d.dx, 20, 980 - d.b.w);
+    d.b.y = clamp(p.y - d.dy, 20, 500 - d.b.h);
+    d.g.setAttribute('transform', 'translate(' + d.b.x + ',' + d.b.y + ')');
+    d.g.__handle.setAttribute('x', d.b.x + d.b.w - 18); d.g.__handle.setAttribute('y', d.b.y + d.b.h - 18);
+    d.members.forEach(function (m) { setPos(m.n, d.b.x + m.ox, d.b.y + m.oy); });
+    drawLinks(); drawNodes();
+  }
+  function blockUp() {
+    if (!bdrag) return;
+    var d = bdrag; bdrag = null;
+    if (d.moved) setStatus('Bloc déplacé' + (d.count ? ' avec ses ' + d.count + ' appareil(s).' : '.'));
+    else setStatus('Bloc sélectionné : renommez-le à droite.');
+    refresh();
+  }
+  function resizeDown(e, b, g, h) {
+    if (mode !== 'select' || isSim()) return;
+    e.preventDefault(); e.stopPropagation();
+    rdrag = { b: b, g: g, h: h };
+    h.setPointerCapture(e.pointerId);
+  }
+  function resizeMove(e, b, g, h) {
+    if (!rdrag) return;
+    var p = toSvg(e);
+    b.w = clamp(p.x - b.x, 140, 960 - b.x);
+    b.h = clamp(p.y - b.y, 100, 500 - b.y);
+    g.querySelector('.block-box').setAttribute('width', b.w);
+    g.querySelector('.block-box').setAttribute('height', b.h);
+    h.setAttribute('x', b.x + b.w - 18); h.setAttribute('y', b.y + b.h - 18);
+  }
+  function resizeUp() { if (!rdrag) return; rdrag = null; refresh(); }
+  function addBlock() {
+    var p = freeSpot(), w = 240, h = 170;
+    var b = { id: 'K' + (++seq), label: 'Nouveau bloc', x: clamp(p.x - w / 2, 20, 980 - w), y: clamp(p.y - h / 2, 20, 500 - h), w: w, h: h };
+    BLOCKS.push(b);
+    selBlock = b.id; selected = null;
+    setStatus('Bloc ajouté. Renommez-le à droite, puis glissez-le pour y ranger des appareils.');
+    refresh();
+  }
+  function removeBlock(id) {
+    BLOCKS = BLOCKS.filter(function (b) { return b.id !== id; });
+    if (selBlock === id) selBlock = null;
+    setStatus('Bloc supprimé. Les appareils restent en place.');
+    refresh();
+  }
+  function renderBlockProps(bl) {
+    var help = document.createElement('p'); help.className = 'help';
+    help.textContent = 'Un bloc regroupe des appareils, par exemple une salle ou un réseau.';
+    propsEl.appendChild(help);
+    field(propsEl, 'Nom du bloc', bl.label, function (inp) { bl.label = inp.value.trim() || bl.label; inp.value = bl.label; inp.defaultValue = bl.label; setStatus('Nom enregistré.'); draw(); }, 'Glissez le bloc pour déplacer aussi les appareils qu\'il contient. Poignée en bas à droite : redimensionner.');
+    var del = document.createElement('button');
+    del.type = 'button'; del.className = 'danger'; del.textContent = 'Supprimer ce bloc';
+    del.addEventListener('click', function () { removeBlock(bl.id); });
+    propsEl.appendChild(del);
+  }
+
+  /* ----- Table de routage d'un routeur ----- */
+  function int2ip(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255].join('.'); }
+  function prefixLen(m) { var v = ip2(m), c = 0; while (v) { c += v & 1; v = v >>> 1; } return c; }
+  function routingRows(n) {
+    var rows = [];
+    n.ifaces.forEach(function (f, i) {
+      if (!f.ip) return;
+      var m = maskOf(f);
+      rows.push({ dst: int2ip((ip2(f.ip) & ip2(m)) >>> 0) + '/' + prefixLen(m), via: 'directement connecté', iface: 'Interface ' + (i + 1) + (f.wan ? ' (WAN)' : '') });
+    });
+    if (n.defGw) {
+      var out = -1;
+      n.ifaces.forEach(function (f, i) { if (out < 0 && f.ip && sameNet(n.defGw, maskOf(f), f.ip)) out = i; });
+      rows.push({ dst: '0.0.0.0/0', via: n.defGw, iface: out >= 0 ? 'Interface ' + (out + 1) : 'injoignable' });
+    }
+    return rows;
+  }
+  function renderRoutingTable(n) {
+    var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Table de routage';
+    propsEl.appendChild(title);
+    var rows = routingRows(n);
+    if (!rows.length) {
+      var none = document.createElement('p'); none.className = 'help';
+      none.textContent = 'Configurez les interfaces pour voir les réseaux connus.';
+      propsEl.appendChild(none);
+      return;
+    }
+    var t = document.createElement('table'); t.className = 'rtable';
+    var head = t.createTHead().insertRow();
+    ['Destination', 'Passerelle', 'Sortie'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
+    var body = t.createTBody();
+    rows.forEach(function (r) {
+      var tr = body.insertRow();
+      [r.dst, r.via, r.iface].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+    });
+    propsEl.appendChild(t);
+    var how = document.createElement('p'); how.className = 'help';
+    how.textContent = 'Le routeur d\'abord les réseaux qui lui sont directement connectés, puis la route par défaut (0.0.0.0/0) pour tout le reste.';
+    propsEl.appendChild(how);
+  }
+
+  function draw() { drawBlocks(); drawLinks(); drawNodes(); }
 
   function refresh() {
     draw();
@@ -411,6 +546,7 @@
   function onDown(e, n, g) {
     if (mode !== 'select' || isSim()) return;
     e.preventDefault();
+    selBlock = null;
     var p = toSvg(e);
     drag = { n: n, g: g, dx: p.x - n.x, dy: p.y - n.y, moved: false, sx: e.clientX, sy: e.clientY };
     g.setPointerCapture(e.pointerId);
@@ -433,7 +569,7 @@
 
   function clickNode(n) {
     if (mode === 'select') {
-      selected = n.id;
+      selected = n.id; selBlock = null;
       setStatus('Configurez ' + n.label + ' à droite. Glissez l\'appareil pour le déplacer.');
       refresh();
     } else if (mode === 'cable') {
@@ -580,6 +716,8 @@
 
   function renderProps() {
     propsEl.textContent = '';
+    var bl = selBlock ? BLOCKS.find(function (b) { return b.id === selBlock; }) : null;
+    if (bl) { renderBlockProps(bl); return; }
     var n = N(selected);
     if (!n || n.hidden) {
       var p = document.createElement('p'); p.className = 'help';
@@ -631,6 +769,8 @@
       if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
       field(propsEl, 'Serveur DNS', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur qui traduit un nom en adresse IP.');
     }
+
+    if (n.type === 'router') renderRoutingTable(n);
 
     if (n.dnsSvc) {
       var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
@@ -808,19 +948,19 @@
       { id: 'DNS', kind: 'dns', type: 'server', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
       { id: 'WEB', kind: 'web', type: 'server', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, x: 910, y: 205 }
     ];
-    LINKS = []; OUT = {}; selected = null; pending = null;
-    var L = function (a, b) { addLink(freeTarget(a), freeTarget(b)); };
+    LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
+    var L =function (a, b) { addLink(freeTarget(a), freeTarget(b)); };
     L('PC', 'SW1'); L('NB', 'SW1'); L('SW1', 'BOX'); L('BOX', 'SW2'); L('OP', 'SW2'); L('DNS', 'SW2'); L('OP', 'WEB');
     setStatus('Scénario de la séance chargé. Configurez le PC et le portable, puis testez.');
     refresh();
   }
   function clearAll() {
-    NODES = []; LINKS = []; OUT = {}; selected = null; pending = null;
+    NODES = []; LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; selected = null; pending = null;
     setStatus('Plan vidé.');
     refresh();
   }
   function exportPlan() {
-    var data = JSON.stringify({ version: 2, nodes: NODES, links: LINKS }, null, 2);
+    var data = JSON.stringify({ version: 3, nodes: NODES, links: LINKS, blocks: BLOCKS }, null, 2);
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
     a.download = 'simulateur-reseau.json';
@@ -833,7 +973,10 @@
       try {
         var data = JSON.parse(reader.result);
         if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('format');
-        NODES = data.nodes; LINKS = data.links; OUT = {}; selected = null; pending = null;
+        NODES = data.nodes; LINKS = data.links; BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
+        selBlock = null; OUT = {}; selected = null; pending = null;
+        // Les nouveaux identifiants ne doivent pas reprendre ceux du plan importé
+        NODES.concat(BLOCKS).forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });
         setStatus('Plan importé.');
         refresh();
       } catch (err) {
@@ -860,7 +1003,7 @@
   // Glisser le fond du plan pour le déplacer ; un simple clic sur le fond désélectionne
   var pan = null;
   svg.addEventListener('pointerdown', function (e) {
-    if (e.button !== 0 || (e.target.closest && e.target.closest('.dev, .cable'))) return;
+    if (e.button !== 0 || (e.target.closest && e.target.closest('.dev, .cable, .block'))) return;
     pan = { sx: e.clientX, sy: e.clientY, x: VB.x, y: VB.y, moved: false };
     svg.setPointerCapture(e.pointerId);
   });
@@ -918,6 +1061,11 @@
     var kind = b.getAttribute('data-add');
     var svgIc = b.querySelector('svg.ic');
     svgIc.setAttribute('class', 'ic k-' + kind);
+    if (kind === 'block') {
+      el('rect', { x: -30, y: -20, width: 60, height: 40, rx: 10, class: 'block-ic' }, svgIc);
+      el('rect', { x: -22, y: -28, width: 30, height: 14, rx: 7, class: 'block-ic-tag' }, svgIc);
+      return;
+    }
     drawIcon(svgIc, { kind: kind });
   });
   var cableIc = document.querySelector('.palette [data-mode="cable"] svg.ic');

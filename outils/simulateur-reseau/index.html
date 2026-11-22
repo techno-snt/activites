@@ -70,6 +70,7 @@
     <button type="button" data-add="wifi" draggable="true" title="Routeur Wi-Fi" aria-label="Routeur Wi-Fi"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur Wi-Fi</span></button>
     <button type="button" data-add="web" draggable="true" title="Serveur web" aria-label="Serveur web"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur web</span></button>
     <button type="button" data-add="dns" draggable="true" title="Serveur DNS" aria-label="Serveur DNS"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur DNS</span></button>
+    <button type="button" data-add="block" draggable="true" title="Bloc : regrouper des appareils (salle, réseau)" aria-label="Bloc"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Bloc</span></button>
   </aside>
 
   <main class="stage">
@@ -87,9 +88,11 @@
           </filter>
         </defs>
         <rect x="-3000" y="-3000" width="7000" height="7000" fill="transparent" class="bg"/>
+        <g id="layerBlocks"></g>
         <g id="layerLinks"></g>
         <g id="layerNodes"></g>
         <g id="layerPk"></g>
+        <g id="layerHandles"></g>
       </svg>
     </div>
 

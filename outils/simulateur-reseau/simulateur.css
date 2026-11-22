@@ -237,3 +237,21 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 }
 .cable-tmp { stroke: var(--purple); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 8 6; pointer-events: none; }
 .term pre.hint { color: #8d9bb8; }
+
+/* Blocs nommés (salles, réseaux) */
+#canvas[data-mode="cable"] .block { pointer-events: none; }
+#canvas[data-mode="delete"] .block { cursor: pointer; }
+.block { cursor: move; }
+.block-box { fill: rgba(37, 99, 235, .06); stroke: #2563eb; stroke-width: 2; stroke-dasharray: 8 6; }
+.block.sel .block-box { stroke-dasharray: none; stroke-width: 3; fill: rgba(37, 99, 235, .1); }
+.block-tag { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+.block-label { font: 700 13px var(--sans); fill: #1e3a8a; pointer-events: none; }
+.block-handle { fill: #2563eb; cursor: nwse-resize; }
+.block-ic { fill: rgba(37, 99, 235, .08); stroke: #2563eb; stroke-width: 3; stroke-dasharray: 7 5; }
+.block-ic-tag { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+
+/* Table de routage */
+.rtable { width: 100%; border-collapse: collapse; font-size: .85rem; margin-bottom: 8px; }
+.rtable th, .rtable td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+.rtable th { font-weight: 700; color: var(--blue); }
+.rtable td { font-family: var(--mono); font-size: .8rem; }
