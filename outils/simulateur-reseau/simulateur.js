@@ -234,6 +234,7 @@
     return { x: 450, y: 260 };
   }
   function addNode(kind) {
+    if (isSim()) { setStatus('Plan verrouillé en mode simulation. Repassez en mode conception pour ajouter un appareil.'); return; }
     var p = freeSpot();
     var n = makeNode(kind, p.x, p.y);
     NODES.push(n);
@@ -320,7 +321,11 @@
       if (a.lan === b.id || b.lan === a.id) return; // liaison interne d'un routeur Wi-Fi, invisible
       var line = el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'cable' }, layerLinks);
       line.addEventListener('click', function (e) {
-        if (mode === 'delete') { e.stopPropagation(); removeLink(l); }
+        if (mode === 'delete' && !isSim()) { e.stopPropagation(); removeLink(l); }
+      });
+      line.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        if (!isSim()) removeLink(l);
       });
     });
   }
@@ -383,6 +388,7 @@
     renderProps();
     refreshHosts();
     syncModeButtons();
+    updateBadge();
   }
 
   function toSvg(e) {
@@ -392,7 +398,7 @@
   }
 
   function onDown(e, n, g) {
-    if (mode !== 'select') return;
+    if (mode !== 'select' || isSim()) return;
     e.preventDefault();
     var p = toSvg(e);
     drag = { n: n, g: g, dx: p.x - n.x, dy: p.y - n.y, moved: false, sx: e.clientX, sy: e.clientY };
@@ -493,6 +499,7 @@
     svg.setAttribute('data-mode', mode);
   }
   function setMode(m) {
+    if (isSim() && m !== 'select') { setStatus('Plan verrouillé en mode simulation.'); return; }
     mode = m; pending = null;
     setStatus(m === 'cable' ? 'Cliquez un port, puis un port de l\'autre appareil pour les relier.' : m === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer.' : 'Cliquez un appareil pour le configurer.');
     refresh();
@@ -653,18 +660,31 @@
     }
   }
 
+  // Temps simulé : environ 1 ms par segment traversé, plus une petite variation
+  function latency(legs) {
+    var segs = 0;
+    legs.forEach(function (leg) { segs += expand(leg).length - 1; });
+    return Math.max(1, Math.round(segs * 1.2 + 1 + Math.random() * 2));
+  }
+
   async function cmdPing(h, target) {
     var r = resolveCore(h.id, target);
     if (!r.ok) { printTo(h.id, r.msg); return; }
     printTo(h.id, 'Ping ' + target + (target === r.ip ? '' : ' [' + r.ip + ']') + ' : 4 paquets.');
-    var ok = 0;
+    var ok = 0, times = [];
     for (var k = 0; k < 4; k++) {
       var p = pingCore(h.id, r.ip);
       await flyLegs(p.legs);
-      if (p.ok) { ok++; printTo(h.id, p.msg + ' (paquet ' + (k + 1) + ')'); }
+      if (p.ok) {
+        ok++;
+        var ms = latency(p.legs);
+        times.push(ms);
+        printTo(h.id, p.msg + ' : temps=' + ms + ' ms (paquet ' + (k + 1) + ')');
+      }
       else printTo(h.id, 'Échec (paquet ' + (k + 1) + ') : ' + p.msg);
     }
-    printTo(h.id, 'Statistiques : 4 envoyés, ' + ok + ' reçus, ' + (4 - ok) + ' perdus.');
+    var avg = times.length ? Math.round(times.reduce(function (a, b) { return a + b; }, 0) / times.length) : 0;
+    printTo(h.id, 'Statistiques : 4 envoyés, ' + ok + ' reçus, ' + (4 - ok) + ' perdus' + (ok ? ', temps moyen ' + avg + ' ms.' : '.'));
   }
 
   async function cmdWeb(h, target) {
@@ -843,6 +863,27 @@
     el('circle', { cx: 30, cy: -14, r: 6, class: 'port-ic' }, cableIc);
   }
 
+  /* ----- Modes conception / simulation ----- */
+  function isSim() { return document.body.classList.contains('sim'); }
+  function updateBadge() {
+    var sim = isSim();
+    $('modeBadge').textContent = sim ? 'Mode simulation' : 'Mode conception';
+    $('planHint').textContent = sim ? 'Plan verrouillé : lancez vos tests dans le terminal.'
+      : mode === 'cable' ? 'Maintenez le clic sur un port, puis relâchez-le sur un autre port.'
+      : mode === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer.'
+      : 'Glissez un appareil pour le déplacer. Clic droit sur un câble pour le supprimer.';
+  }
+  function setSim(on) {
+    document.body.classList.toggle('sim', on);
+    $('btnSim').setAttribute('aria-pressed', on ? 'true' : 'false');
+    $('btnConcept').setAttribute('aria-pressed', on ? 'false' : 'true');
+    if (on) { pending = null; mode = 'select'; setStatus('Mode simulation : le plan est verrouillé. Utilisez le terminal.'); }
+    else setStatus('Mode conception : vous pouvez de nouveau modifier le plan.');
+    refresh();
+  }
+  $('btnConcept').addEventListener('click', function () { setSim(false); });
+  $('btnSim').addEventListener('click', function () { setSim(true); });
+
   /* ----- Glisser-déposer depuis la palette ----- */
   var wrap = svg.parentNode;
   document.querySelectorAll('[data-add]').forEach(function (b) {
@@ -860,7 +901,7 @@
   svg.addEventListener('drop', function (e) {
     e.preventDefault(); wrap.classList.remove('drop');
     var kind = e.dataTransfer.getData('text/plain');
-    if (!KINDS[kind]) return;
+    if (!KINDS[kind] || isSim()) return;
     var p = toSvg(e);
     var n = makeNode(kind, clamp(p.x, 60, 940), clamp(p.y, 50, 470));
     NODES.push(n);

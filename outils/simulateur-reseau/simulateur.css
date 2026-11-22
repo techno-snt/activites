@@ -204,5 +204,23 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .port.on text { fill: #ffffff; }
 .port.pend circle { fill: var(--purple); stroke: var(--purple); }
 .port.pend text { fill: #ffffff; }
+/* Étiquette du mode et aide sur le plan */
+.plan-badge {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  background: var(--surface); color: var(--blue); border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 12px; font-size: .85rem; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 27, 61, .08);
+}
+.plan-hint {
+  position: absolute; left: 12px; bottom: 10px; z-index: 2; margin: 0; max-width: calc(100% - 24px);
+  background: rgba(255, 255, 255, .92); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-size: .85rem;
+}
+body.sim .plan-badge { color: var(--ok); }
+.cable:hover { stroke: var(--blue); }
+
+/* Mode simulation : le plan et la configuration sont verrouillés */
+body.sim .palette button { pointer-events: none; opacity: .4; }
+body.sim .props .field input, body.sim .props textarea, body.sim .props .iface-bar button,
+body.sim .props .danger, body.sim .props .field.check input { pointer-events: none; opacity: .6; }
+.tb#btnSim[aria-pressed="true"] { background: var(--ok); color: #ffffff; }
 .cable-tmp { stroke: var(--purple); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 8 6; pointer-events: none; }
 .term pre.hint { color: #8d9bb8; }

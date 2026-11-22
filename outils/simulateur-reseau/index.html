@@ -39,6 +39,9 @@
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4 M5 4h12l-2 4 2 4H5"/></svg>
     </button>
     <span class="sep" aria-hidden="true"></span>
+    <button class="tb" id="btnConcept" type="button" aria-pressed="true" title="Mode conception : construire et câbler le plan" aria-label="Mode conception"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z M14 6l3 3"/></svg></button>
+    <button class="tb" id="btnSim" type="button" aria-pressed="false" title="Mode simulation : plan verrouillé pendant les tests" aria-label="Mode simulation"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg></button>
+    <span class="sep" aria-hidden="true"></span>
     <button class="tb" type="button" data-mode="select" aria-pressed="true" title="Déplacer et configurer" aria-label="Déplacer et configurer">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 2-2 6z"/></svg>
     </button>
@@ -71,6 +74,8 @@
 
   <main class="stage">
     <div class="canvas-wrap" id="canvasWrap">
+      <span class="plan-badge" id="modeBadge" role="status">Mode conception</span>
+      <p class="plan-hint" id="planHint"></p>
       <svg id="canvas" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" role="application" aria-label="Plan du réseau">
         <defs>
           <linearGradient id="gradBody" x1="0" y1="0" x2="0" y2="1">
