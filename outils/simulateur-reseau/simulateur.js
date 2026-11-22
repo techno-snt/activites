@@ -1325,10 +1325,27 @@
     inp.setAttribute('aria-label', 'Saisie de la commande'); inp.value = w.draft || '';
     inp.addEventListener('input', function () { w.draft = inp.value; });
     form.appendChild(ps); form.appendChild(inp);
+    // Historique des commandes par machine : flèches haut et bas pour rappeler une commande tapée
+    var hist = cmdHist[h.id] = cmdHist[h.id] || [];
+    var hi = hist.length;
+    inp.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      if (!hist.length) return;
+      if (e.key === 'ArrowUp') hi = Math.max(0, hi - 1);
+      else hi = Math.min(hist.length, hi + 1);
+      inp.value = hi < hist.length ? hist[hi] : '';
+      w.draft = inp.value;
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+    });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var line = inp.value;
-      if (!termBusy) { inp.value = ''; w.draft = ''; }
+      if (!termBusy) {
+        if (line.trim() && hist[hist.length - 1] !== line) hist.push(line);
+        hi = hist.length;
+        inp.value = ''; w.draft = '';
+      }
       refreshHosts(); termHost.value = h.id;
       runCommand(line);
     });
@@ -1650,6 +1667,8 @@
     printTo(h.id, 'Serveur DNS : ' + (h.dns || '(aucun)'));
   }
 
+  // Historique des commandes saisies, par machine (conservé même si la fenêtre est fermée)
+  var cmdHist = {};
   // Une seule commande à la fois : sinon les sorties d'un ping animé se mélangent à la commande suivante
   var termBusy = false;
   async function runCommand(line) {
