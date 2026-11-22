@@ -191,10 +191,11 @@
     if (!h.dns) return { ok: false, msg: 'Nom « ' + name + ' » inconnu : aucun serveur DNS configuré sur ' + h.label + '.' };
     var dnsNode = NODES.find(function (n) { return n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc; });
     if (!dnsNode) return { ok: false, msg: 'Serveur DNS ' + h.dns + ' introuvable.' };
+    // La requête DNS part sur le schéma : l'appelant doit faire voyager les paquets (r.legs) avant d'afficher le résultat
     var q = pingCore(hostId, h.dns, 'Requête DNS : ' + name);
-    if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable. ' + q.msg };
-    if (!dnsNode.records || !(name in dnsNode.records)) return { ok: false, msg: 'Le serveur DNS ne connaît pas « ' + name + ' ».' };
-    return { ok: true, ip: dnsNode.records[name] };
+    if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable. ' + q.msg, legs: q.legs };
+    if (!dnsNode.records || !(name in dnsNode.records)) return { ok: false, msg: 'Le serveur DNS ne connaît pas « ' + name + ' ».', legs: q.legs };
+    return { ok: true, ip: dnsNode.records[name], legs: q.legs };
   }
 
   /* ===================== DHCP ===================== */
@@ -314,6 +315,8 @@
   var mode = 'select', selected = null, pending = null, drag = null, busy = false, OUT = {};
   var BLOCKS = [], selBlock = null, bdrag = null, rdrag = null, layerBlocks = $('layerBlocks'), layerHandles = $('layerHandles');
   var fid = 0;
+  var animSpeedEl = document.getElementById('animSpeed');
+  if (animSpeedEl) animSpeedEl.addEventListener('input', function () { setAnimSpeed(animSpeedEl.value); });
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var KINDS = {
@@ -716,6 +719,28 @@
     }
     return rows;
   }
+  // État des connexions des interfaces d'un routeur (vert : câblée et adressée ; orange : câblée sans adresse ; rouge : non câblée)
+  function renderConnections(n) {
+    var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Gérer les connexions';
+    propsEl.appendChild(title);
+    var t = document.createElement('table'); t.className = 'rtable conn-table';
+    var head = t.createTHead().insertRow();
+    ['N°', 'Adresse IP', 'Réseau', 'État'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
+    var body = t.createTBody();
+    n.ifaces.forEach(function (f, i) {
+      var cabled = !!linkAt(n.id, i);
+      var tr = body.insertRow();
+      tr.insertCell().textContent = String(i + 1);
+      tr.insertCell().textContent = f.ip || '—';
+      tr.insertCell().textContent = f.ip ? int2ip((ip2(f.ip) & ip2(maskOf(f))) >>> 0) + '/' + prefixLen(maskOf(f)) : '—';
+      var st = tr.insertCell();
+      var dot = document.createElement('span'); dot.className = 'conn-dot ' + (cabled && f.ip ? 'conn-ok' : cabled ? 'conn-warn' : 'conn-off');
+      dot.setAttribute('aria-hidden', 'true');
+      st.appendChild(dot);
+      st.appendChild(document.createTextNode(cabled && f.ip ? 'Connectée' : cabled ? 'Sans adresse IP' : 'Non câblée'));
+    });
+    propsEl.appendChild(t);
+  }
   function renderRoutingTable(n) {
     var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Table de routage';
     propsEl.appendChild(title);
@@ -1047,6 +1072,7 @@
       rem.disabled = n.ifaces.length <= 1 || linkAt(n.id, n.ifaces.length - 1);
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
+      renderConnections(n);
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else {
       var sv = document.createElement('p'); sv.className = 'help';
@@ -1290,34 +1316,41 @@
     win.setAttribute('aria-label', 'Ligne de commande de ' + h.label);
     win.appendChild(winHead(w, 'Ligne de commande · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')', false));
     var body = document.createElement('div'); body.className = 'dwin-body term-body';
-    var out = document.createElement('pre'); out.className = 'term-app-out'; out.tabIndex = 0; out.setAttribute('aria-label', 'Sortie de la ligne de commande');
-    var form = document.createElement('form'); form.className = 'term-app-form';
+    // Console : la sortie défile, l'invite est sur la dernière ligne (comme dans l'activité)
+    var con = document.createElement('div'); con.className = 'term-app-out'; con.setAttribute('aria-label', 'Ligne de commande');
+    var lines = document.createElement('pre'); lines.className = 'term-lines';
+    var form = document.createElement('form'); form.className = 'term-prompt';
+    var ps = document.createElement('span'); ps.className = 'term-ps'; ps.textContent = h.label + ' > ';
     var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.placeholder = 'ping 192.168.0.10'; inp.setAttribute('aria-label', 'Commande'); inp.value = w.draft || '';
+    inp.setAttribute('aria-label', 'Saisie de la commande'); inp.value = w.draft || '';
     inp.addEventListener('input', function () { w.draft = inp.value; });
-    var go = document.createElement('button'); go.type = 'submit'; go.textContent = 'Lancer';
-    form.appendChild(inp); form.appendChild(go);
+    form.appendChild(ps); form.appendChild(inp);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var line = inp.value; inp.value = ''; w.draft = '';
       refreshHosts(); termHost.value = h.id;
       runCommand(line);
     });
-    body.appendChild(out); body.appendChild(form);
+    con.appendChild(lines); con.appendChild(form);
+    con.addEventListener('click', function (e) { if (e.target === con || e.target === lines) inp.focus(); });
+    body.appendChild(con);
     win.appendChild(body);
-    fillTermApp(out, h.id);
+    fillTermApp(win, h.id);
     decorateWin(win, w, box);
+    setTimeout(function () { inp.focus(); }, 0);
     return win;
   }
-  function fillTermApp(pre, hostId) {
-    var lines = OUT[hostId] || [];
-    pre.textContent = lines.length ? lines.join('\n') : 'Tapez « aide » pour la liste des commandes.';
-    pre.scrollTop = pre.scrollHeight;
+  function fillTermApp(win, hostId) {
+    var con = win.querySelector('.term-app-out');
+    var lines = win.querySelector('.term-lines');
+    var out = OUT[hostId] || [];
+    lines.textContent = out.length ? out.join('\n') : 'Tapez « aide » pour la liste des commandes.';
+    con.scrollTop = con.scrollHeight;
   }
   // Mise à jour des fenêtres de ligne de commande ouvertes sur cette machine
   function updateTermApps(hostId) {
     deskZone.querySelectorAll('.term-app').forEach(function (t) {
-      if (t.getAttribute('data-host') === hostId) fillTermApp(t.querySelector('pre'), hostId);
+      if (t.getAttribute('data-host') === hostId) fillTermApp(t, hostId);
     });
   }
   function buildDesk(w) {
@@ -1482,12 +1515,16 @@
           var t = s / steps;
           dot.setAttribute('cx', a.x + (b.x - a.x) * t);
           dot.setAttribute('cy', a.y + (b.y - a.y) * t);
-          if (s < steps) setTimeout(tick, 10);
+          if (s < steps) setTimeout(tick, animDelay);
           else { i++; nextSeg(); }
         })();
       })();
     });
   }
+  // Vitesse d'animation réglée par le curseur de la barre (1 = lente, 5 = rapide) : délai entre deux positions du paquet
+  var SPEED_DELAY = [70, 36, 18, 9, 3];
+  var animDelay = SPEED_DELAY[2];
+  function setAnimSpeed(v) { animDelay = SPEED_DELAY[Math.max(0, Math.min(4, (+v || 3) - 1))]; }
   async function flyLegs(legs) {
     for (var k = 0; k < legs.length; k++) {
       await fly(expand(legs[k]), k === 0 ? 'req' : 'rep');
@@ -1503,6 +1540,7 @@
 
   async function cmdPing(h, target) {
     var r = resolveCore(h.id, target);
+    await flyLegs(r.legs || []);
     if (!r.ok) { printTo(h.id, r.msg); return; }
     printTo(h.id, 'Ping ' + target + (target === r.ip ? '' : ' [' + r.ip + ']') + ' : 4 paquets.');
     var ok = 0, times = [];
@@ -1521,18 +1559,22 @@
     printTo(h.id, 'Statistiques : 4 envoyés, ' + ok + ' reçus, ' + (4 - ok) + ' perdus' + (ok ? ', temps moyen ' + avg + ' ms.' : '.'));
   }
 
-  async function cmdWeb(h, target) {
+  // host <nom> : traduit un nom en adresse IP par le serveur DNS (la requête voyage sur le schéma)
+  async function cmdHost(h, target) {
+    if (ipOK(target)) { printTo(h.id, target + ' est déjà une adresse IP.'); return; }
     var r = resolveCore(h.id, target);
+    await flyLegs(r.legs || []);
     if (!r.ok) { printTo(h.id, r.msg); return; }
-    var p = pingCore(h.id, r.ip, 'Requête HTTP GET /');
-    await flyLegs(p.legs);
-    if (!p.ok) { printTo(h.id, 'Pas de réponse du serveur : ' + p.msg); return; }
-    var srv = N(p.dstNode);
-    if (srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })) {
-      printTo(h.id, 'HTTP 200 OK : la page de « ' + (srv.siteName || SITE) + ' » s\'affiche.');
-    } else {
-      printTo(h.id, 'Connexion établie, mais ' + r.ip + ' ne répond pas comme un serveur web.');
-    }
+    printTo(h.id, target + ' a pour adresse ' + r.ip);
+  }
+  // route : table de routage de la machine (réseau directement connecté et passerelle)
+  function routeCmd(h) {
+    var f = h.ifaces[0], rows = [];
+    if (f.ip) { var m = maskOf(f); rows.push([int2ip((ip2(f.ip) & ip2(m)) >>> 0) + '/' + prefixLen(m), 'directement connecté', 'Interface 1']); }
+    if (h.gw) rows.push(['0.0.0.0/0', h.gw, 'Interface 1']);
+    printTo(h.id, 'Destination'.padEnd(20) + 'Passerelle'.padEnd(24) + 'Interface');
+    if (!rows.length) printTo(h.id, '(table vide : configurez l\'adresse IP)');
+    rows.forEach(function (r) { printTo(h.id, r[0].padEnd(20) + r[1].padEnd(24) + r[2]); });
   }
 
   // Navigateur web : même chemin que la commande web (DNS, puis requête HTTP), avec animation
@@ -1552,6 +1594,7 @@
     w.state = { status: 'Recherche de l\'adresse de ' + name + '…' };
     renderDesk();
     var r = resolveCore(h.id, name);
+    await flyLegs(r.legs || []);
     if (!r.ok) return navFinish(w, tok, { status: 'Site introuvable', error: r.msg });
     w.state = { status: 'Requête vers ' + r.ip + '…' };
     renderDesk();
@@ -1575,15 +1618,9 @@
     }
     return 0;
   }
-  // Met en évidence un port (aux couleurs de son réseau) le temps d'un tracé
-  function flashPort(nodeId, idx) {
-    var pg = layerNodes.querySelector('.port[data-vis="' + nodeId + '"][data-idx="' + idx + '"]');
-    if (!pg) return;
-    pg.classList.add('trace');
-    setTimeout(function () { pg.classList.remove('trace'); }, 1800);
-  }
   async function cmdTrace(h, target) {
     var r = resolveCore(h.id, target);
+    await flyLegs(r.legs || []);
     if (!r.ok) { printTo(h.id, r.msg); return; }
     var pid = ++pidSeq;
     var rr = route(h.id, h.ifaces[0].ip, r.ip, pid);
@@ -1594,7 +1631,6 @@
       var node = N(hops[k]);
       var idx = ifaceIndexFrom(node, hops[k - 1]);
       var ip = (k === hops.length - 1 && rr.ok) ? r.ip : (node.ifaces[idx] ? node.ifaces[idx].ip : '');
-      if (node.type === 'router') flashPort(node.id, idx);
       var via = node.type === 'router' ? ' · interface ' + (idx + 1) : '';
       printTo(h.id, k + '  ' + ip + '  (' + node.label + via + ')  ' + latency([hops.slice(0, k + 1)]) + ' ms');
     }
@@ -1615,7 +1651,7 @@
       printTo(h.id, 'La ligne de commande n\'est pas installée sur ' + h.label + '. Double-cliquez l\'ordinateur en simulation, puis installez-la.');
       return;
     }
-    printTo(h.id, '> ' + line);
+    printTo(h.id, h.label + ' > ' + line);
     var parts = line.trim().split(/\s+/);
     var cmd = (parts[0] || '').toLowerCase();
     var arg = parts[1] || '';
@@ -1623,23 +1659,21 @@
     if (cmd === 'aide') {
       printTo(h.id, 'ping <adresse ou nom> : teste la connexion (4 paquets)');
       printTo(h.id, 'traceroute <adresse ou nom> : liste les routeurs traversés');
-      printTo(h.id, 'web <adresse ou nom> : demande la page du site');
+      printTo(h.id, 'host <nom> : donne l\'adresse IP d\'un nom (serveur DNS)');
+      printTo(h.id, 'route : affiche la table de routage');
       printTo(h.id, 'ipconfig : affiche la configuration');
-      printTo(h.id, 'dhcp : demande une adresse au serveur DHCP du réseau');
       printTo(h.id, 'clear : efface le terminal');
     } else if (cmd === 'clear') {
       OUT[h.id] = []; renderTermOut();
     } else if (cmd === 'ipconfig') {
       ipconfig(h);
-    } else if (cmd === 'dhcp') {
-      var dr = dhcpRequest(h);
-      printTo(h.id, dr.msg);
-      draw(); refreshHosts();
-    } else if (cmd === 'ping' || cmd === 'web' || cmd === 'traceroute') {
+    } else if (cmd === 'route') {
+      routeCmd(h);
+    } else if (cmd === 'ping' || cmd === 'host' || cmd === 'traceroute') {
       if (!arg) { printTo(h.id, 'Usage : ' + cmd + ' <adresse ou nom>'); return; }
       if (!h.ifaces[0].ip) { printTo(h.id, h.label + ' : pas d\'adresse IP configurée.'); return; }
       busy = true; cmdInput.disabled = true;
-      try { if (cmd === 'ping') await cmdPing(h, arg); else if (cmd === 'traceroute') await cmdTrace(h, arg); else await cmdWeb(h, arg); }
+      try { if (cmd === 'ping') await cmdPing(h, arg); else if (cmd === 'traceroute') await cmdTrace(h, arg); else await cmdHost(h, arg); }
       finally { busy = false; cmdInput.disabled = false; cmdInput.focus(); }
     } else {
       printTo(h.id, 'Commande inconnue : ' + cmd + '. Tapez « aide ».');
