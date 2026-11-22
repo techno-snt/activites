@@ -860,11 +860,14 @@
   svg.addEventListener('pointercancel', function () { pan = null; });
 
   // Clic droit sur une zone vide du plan : quitte le mode Câble ou Supprimer
-  svg.addEventListener('contextmenu', function (e) {
+  // Écoute sur toute la zone du plan (y compris les marges autour du dessin) ;
+  // un câble a déjà traité son propre clic droit (defaultPrevented)
+  document.querySelector('.stage').addEventListener('contextmenu', function (e) {
     var t = e.target;
-    var onEmpty = t === svg || (t.classList && t.classList.contains('bg'));
-    if (!onEmpty) return;
+    if (t.closest && t.closest('#term')) return; // le terminal garde son menu
     e.preventDefault();
+    if (e.defaultPrevented && t.closest && t.closest('.cable')) return;
+    if (t.closest && t.closest('.dev')) return;
     if (mode !== 'select' && !isSim()) setMode('select');
   });
 
