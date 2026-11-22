@@ -193,6 +193,7 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .k-wifi .body { fill: #e0e7ff; stroke: #1e3a8a; }
 .k-wifi .lines { stroke: #1e3a8a; }
 .k-dns .body { fill: #fce7f3; stroke: #be185d; }
+.k-dhcp .body { fill: #ecfccb; stroke: #4d7c0f; }
 .lab-bg { fill: rgba(255, 255, 255, .92); }
 .palette .ic .cable-ic { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
 .palette .ic .port-ic { fill: #ffffff; stroke: var(--blue); stroke-width: 2.5; }

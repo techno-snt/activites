@@ -153,6 +153,40 @@
     return { ok: true, ip: dnsNode.records[name] };
   }
 
+  /* ===================== DHCP ===================== */
+  // Une machine demande une adresse au serveur DHCP branché sur son réseau local.
+  // Le serveur lui réserve une adresse de sa plage, et lui transmet la passerelle et le DNS.
+  function isHostType(n) { return n.type === 'pc' || n.type === 'notebook'; }
+  function dhcpRequest(h) {
+    if (!isHostType(h)) return { ok: false, msg: 'Seules les machines demandent une adresse.' };
+    if (!linkAt(h.id, 0)) return { ok: false, msg: 'Câble non branché.' };
+    var srv = null;
+    segment(h.id, 0).forEach(function (e) { var x = N(e.n); if (!srv && x && x.dhcpSvc && e.i === 0) srv = x; });
+    if (!srv) return { ok: false, msg: 'Aucun serveur DHCP sur ce réseau local. Branchez-le sur le même réseau (sans routeur entre les deux).' };
+    if (!srv.ifaces[0].ip) return { ok: false, msg: srv.label + ' n\'a pas d\'adresse IP : il ne peut pas distribuer d\'adresses.' };
+    if (!srv.pool || !srv.pool.start || !srv.pool.end) return { ok: false, msg: srv.label + ' : la plage d\'adresses n\'est pas configurée.' };
+    if (ip2(srv.pool.start) > ip2(srv.pool.end)) return { ok: false, msg: 'Plage incohérente : la première adresse est après la dernière.' };
+    var m = maskOf(srv.ifaces[0]);
+    var addr = srv.leases[h.id];
+    if (!addr) {
+      var used = {};
+      NODES.forEach(function (n) { (n.ifaces || []).forEach(function (f) { if (f.ip) used[f.ip] = true; }); });
+      Object.keys(srv.leases).forEach(function (k) { used[srv.leases[k]] = true; });
+      for (var v = ip2(srv.pool.start); v <= ip2(srv.pool.end) && !addr; v++) {
+        var c = int2ip(v);
+        if (!used[c]) addr = c;
+      }
+      if (!addr) return { ok: false, msg: 'Plage épuisée : ' + srv.label + ' n\'a plus d\'adresse libre.' };
+      srv.leases[h.id] = addr;
+    }
+    h.ifaces[0].ip = addr;
+    h.ifaces[0].mask = m;
+    h.gw = srv.dhcpGw || '';
+    h.dns = srv.dhcpDns || '';
+    h.dhcp = true;
+    return { ok: true, msg: 'Adresse ' + addr + ' attribuée par ' + srv.label + '.' };
+  }
+
   /* ===================== Chemin physique (pour l'animation) ===================== */
   // Passe par les switchs, pas par les routeurs ni les machines.
   function physPath(a, b) {
@@ -199,7 +233,8 @@
     router: { label: 'Routeur', type: 'router' },
     wifi: { label: 'Routeur Wi-Fi', type: 'router', wifi: true },
     web: { label: 'Serveur web', type: 'server', web: true },
-    dns: { label: 'Serveur DNS', type: 'server', dnsSvc: true }
+    dns: { label: 'Serveur DNS', type: 'server', dnsSvc: true },
+    dhcp: { label: 'Serveur DHCP', type: 'server', dhcpSvc: true }
   };
 
   function el(tag, attrs, parent) {
@@ -231,6 +266,7 @@
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
       if (k.web) n.web = true;
       if (k.dnsSvc) { n.dnsSvc = true; n.records = {}; }
+      if (k.dhcpSvc) { n.dhcpSvc = true; n.pool = { start: '', end: '' }; n.dhcpGw = ''; n.dhcpDns = ''; n.leases = {}; }
     }
     return n;
   }
@@ -298,6 +334,9 @@
       el('circle', { cx: 0, cy: 0, r: 26, class: 'body' }, g);
       el('ellipse', { cx: 0, cy: 0, rx: 11, ry: 26, class: 'lines' }, g);
       el('line', { x1: -26, y1: 0, x2: 26, y2: 0, class: 'lines' }, g);
+    } else if (k === 'dhcp') {
+      el('rect', { x: -28, y: -22, width: 56, height: 44, rx: 6, class: 'body' }, g);
+      el('path', { d: 'M-16 -10 H16 M-16 0 H16 M-16 10 H4', class: 'lines' }, g);
     } else {
       [-18, -3, 12].forEach(function (y) {
         el('rect', { x: -24, y: y, width: 48, height: 15, rx: 4, class: 'body' }, g);
@@ -762,9 +801,64 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); propsEl.appendChild(bar);
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+    } else if (n.dhcpSvc) {
+      var dhelp = document.createElement('p'); dhelp.className = 'help';
+      dhelp.textContent = 'Le serveur distribue les adresses de sa plage aux machines de son réseau local qui le demandent.';
+      propsEl.appendChild(dhelp);
+      field(propsEl, 'Adresse IP du serveur', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
+      field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
+      var poolChange = function (key) {
+        return function (inp) {
+          var v = inp.value.trim();
+          if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
+          n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
+          draw();
+        };
+      };
+      field(propsEl, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
+      field(propsEl, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
+      field(propsEl, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
+      field(propsEl, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
+      var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
+      propsEl.appendChild(lt);
+      var lids = Object.keys(n.leases);
+      if (!lids.length) {
+        var none = document.createElement('p'); none.className = 'help';
+        none.textContent = 'Aucune adresse distribuée pour l\'instant.';
+        propsEl.appendChild(none);
+      } else {
+        var lta = document.createElement('table'); lta.className = 'rtable';
+        var lh = lta.createTHead().insertRow();
+        ['Machine', 'Adresse'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; lh.appendChild(th); });
+        var lb = lta.createTBody();
+        lids.forEach(function (id) {
+          var tr = lb.insertRow();
+          var mach = N(id);
+          [mach ? mach.label : id, n.leases[id]].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+        });
+        propsEl.appendChild(lta);
+      }
     } else {
       field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
       field(propsEl, 'Masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }), 'Les machines ayant les mêmes nombres (selon le masque) sont sur le même réseau. 255.255.255.0 : réseau /24.');
+      if (isHostType(n)) {
+        var dwrap = document.createElement('div'); dwrap.className = 'field check';
+        var dcb = document.createElement('input'); dcb.type = 'checkbox'; dcb.id = 'f' + (++fid); dcb.checked = !!n.dhcp;
+        dcb.addEventListener('change', function () {
+          if (dcb.checked) { var r = dhcpRequest(n); setStatus(r.msg); if (!r.ok) n.dhcp = false; }
+          else { n.dhcp = false; setStatus('DHCP désactivé : saisissez une adresse fixe.'); }
+          draw(); refresh();
+        });
+        var dcl = document.createElement('label'); dcl.htmlFor = dcb.id; dcl.textContent = 'Obtenir automatiquement (DHCP)';
+        dwrap.appendChild(dcb); dwrap.appendChild(dcl); propsEl.appendChild(dwrap);
+        if (n.dhcp) {
+          var rbar = document.createElement('div'); rbar.className = 'iface-bar';
+          var renew = document.createElement('button');
+          renew.type = 'button'; renew.textContent = 'Renouveler l\'adresse';
+          renew.addEventListener('click', function () { var r = dhcpRequest(n); setStatus(r.msg); draw(); refresh(); });
+          rbar.appendChild(renew); propsEl.appendChild(rbar);
+        }
+      }
       field(propsEl, 'Passerelle', n.gw, ipChange(function (v) { n.gw = v; }), 'Le routeur de mon réseau, pour sortir de mon réseau.');
       if (n.web) field(propsEl, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
       field(propsEl, 'Serveur DNS', n.dns, ipChange(function (v) { n.dns = v; }), 'Le serveur qui traduit un nom en adresse IP.');
@@ -911,11 +1005,16 @@
       printTo(h.id, 'ping <adresse ou nom> : teste la connexion (4 paquets)');
       printTo(h.id, 'web <adresse ou nom> : demande la page du site');
       printTo(h.id, 'ipconfig : affiche la configuration');
+      printTo(h.id, 'dhcp : demande une adresse au serveur DHCP du réseau');
       printTo(h.id, 'clear : efface le terminal');
     } else if (cmd === 'clear') {
       OUT[h.id] = []; renderTermOut();
     } else if (cmd === 'ipconfig') {
       ipconfig(h);
+    } else if (cmd === 'dhcp') {
+      var dr = dhcpRequest(h);
+      printTo(h.id, dr.msg);
+      draw(); refreshHosts();
     } else if (cmd === 'ping' || cmd === 'web') {
       if (!arg) { printTo(h.id, 'Usage : ' + cmd + ' <adresse ou nom>'); return; }
       if (!h.ifaces[0].ip) { printTo(h.id, h.label + ' : pas d\'adresse IP configurée.'); return; }
