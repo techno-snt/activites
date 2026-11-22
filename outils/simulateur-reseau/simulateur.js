@@ -358,6 +358,9 @@
           var pg = el('g', { class: 'port' + (linked ? ' on' : '') + (isPend ? ' pend' : ''), transform: 'translate(' + s.x + ',' + s.y + ')', 'data-vis': n.id, 'data-idx': idx }, g);
           el('circle', { r: 7 }, pg);
           if (s.t) { var tx = el('text', {}, pg); tx.textContent = s.t; }
+          var tip = el('title', {}, pg);
+          var etat = linked ? 'branché' : 'libre';
+          tip.textContent = s.t ? n.label + ' : port ' + s.t + ' (' + etat + ')' : n.label + ' (' + etat + ')';
           pg.addEventListener('click', function (e) { e.stopPropagation(); if (!skipClick) handlePort(n.id, idx); });
           pg.addEventListener('pointerdown', function (e) {
             if (e.button !== 0) return;
@@ -375,6 +378,7 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clickNode(n); }
       });
     });
+    markTargets(currentSrc());
     if (!NODES.some(function (n) { return !n.hidden; })) {
       var hint = el('text', { x: 450, y: 260, class: 'empty', 'text-anchor': 'middle' }, layerNodes);
       hint.textContent = 'Ajoutez des appareils à gauche, ou chargez le scénario de la séance.';
@@ -462,18 +466,43 @@
     var line = el('line', { x1: dev.x + p.x, y1: dev.y + p.y, x2: dev.x + p.x, y2: dev.y + p.y, class: 'cable-tmp' }, layerPk);
     cableDrag = { vis: visId, idx: idx, line: line };
     setStatus('Relâchez le clic sur un port de l\'autre appareil.');
+    $('planHint').textContent = 'Relâchez le clic sur un port bleu qui clignote (un port libre).';
+    markTargets(cableDrag);
   }
   document.addEventListener('pointermove', function (e) {
     if (!cableDrag) return;
     var q = toSvg(e);
     cableDrag.line.setAttribute('x2', q.x);
     cableDrag.line.setAttribute('y2', q.y);
+    // Le port survolé s'allume s'il est une cible valide
+    var under = document.elementFromPoint(e.clientX, e.clientY);
+    var pgHot = under && under.closest ? under.closest('.port') : null;
+    layerNodes.querySelectorAll('.port.hot').forEach(function (x) { x.classList.remove('hot'); });
+    if (pgHot && pgHot.classList.contains('target')) pgHot.classList.add('hot');
   });
+
+  // Ports cibles : libres et sur un autre appareil que le port de départ
+  function currentSrc() {
+    if (cableDrag) return { vis: cableDrag.vis, idx: cableDrag.idx };
+    return pending ? { vis: pending.vis, idx: pending.idx } : null;
+  }
+  function markTargets(src) {
+    layerNodes.querySelectorAll('.port').forEach(function (pg) {
+      pg.classList.remove('target', 'src', 'hot');
+      if (!src) return;
+      var vis = pg.getAttribute('data-vis'), idx = +pg.getAttribute('data-idx');
+      if (vis === src.vis && idx === src.idx) { pg.classList.add('src'); return; }
+      if (vis === src.vis) return;
+      var t = targetsOf(vis)[idx];
+      if (t && !linkAt(t.n, t.i)) pg.classList.add('target');
+    });
+  }
   document.addEventListener('pointerup', function (e) {
     if (!cableDrag) return;
     var d = cableDrag;
     cableDrag = null;
     d.line.remove();
+    markTargets(null);
     var hit = document.elementFromPoint(e.clientX, e.clientY);
     var target = null;
     var pgEl = hit && hit.closest ? hit.closest('.port') : null;

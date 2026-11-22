@@ -222,5 +222,18 @@ body.sim .palette button { pointer-events: none; opacity: .4; }
 body.sim .props .field input, body.sim .props textarea, body.sim .props .iface-bar button,
 body.sim .props .danger, body.sim .props .field.check input { pointer-events: none; opacity: .6; }
 .tb#btnSim[aria-pressed="true"] { background: var(--ok); color: #ffffff; }
+/* Indices de câblage : ports libres qui clignotent, port de départ, port survolé */
+.port.target circle { fill: #e6f0fb; stroke: var(--blue); stroke-width: 2; animation: port-pulse 1.1s ease-in-out infinite; }
+.port.src circle { fill: var(--purple); stroke: var(--purple); stroke-width: 3; }
+.port.src text { fill: #ffffff; }
+.port.hot circle { fill: var(--blue); stroke: var(--blue); stroke-width: 3; animation: none; }
+.port.hot text { fill: #ffffff; }
+@keyframes port-pulse {
+  0%, 100% { stroke-width: 1.5; }
+  50% { stroke-width: 5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .port.target circle { animation: none; stroke-width: 3; }
+}
 .cable-tmp { stroke: var(--purple); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 8 6; pointer-events: none; }
 .term pre.hint { color: #8d9bb8; }
