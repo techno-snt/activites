@@ -1261,6 +1261,8 @@
   // En-tête de fenêtre : titre, réduire (vers la barre du bas), fermer
   // Réduire : la fenêtre rejoint la barre des tâches de son bureau (ou le coin du bureau pour un bureau réduit)
   var TASK_NAMES = { term: 'Ligne de commande', nav: 'Navigateur web', edit: 'Éditeur de textes', trames: 'Échanges de données', install: 'Installation', 'svc-web': 'Serveur web', 'svc-dns': 'Serveur DNS', 'svc-dhcp': 'DHCP' };
+  // Pastilles reprises des icônes du bureau, pour la barre des tâches
+  var TASK_TILES = { term: { tile: '>_', cls: 'cmd' }, nav: { tile: 'Nav', cls: 'net' }, edit: { tile: 'Ed', cls: 'net' }, trames: { tile: 'Tr', cls: 'net' }, install: { tile: '+', cls: 'inst' }, 'svc-web': { tile: 'Web', cls: 'srv' }, 'svc-dns': { tile: 'DNS', cls: 'srv' }, 'svc-dhcp': { tile: 'DHCP', cls: 'srv' } };
   function minimizeWin(btn, w) {
     var el = btn.closest('.dwin');
     if (!el || reducedMotion()) { w.min = true; renderDesk(); return; }
@@ -1515,9 +1517,13 @@
     var ip = document.createElement('span'); ip.textContent = h.ifaces[0].ip || 'sans IP';
     bar.appendChild(start);
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && a.min; }).forEach(function (a) {
+      var name = TASK_NAMES[a.type] || 'Fenêtre';
+      var info = TASK_TILES[a.type] || { tile: '?', cls: '' };
       var tk = document.createElement('button'); tk.type = 'button'; tk.className = 'task-item';
-      tk.textContent = TASK_NAMES[a.type] || 'Fenêtre';
-      tk.title = 'Restaurer la fenêtre';
+      tk.setAttribute('aria-label', 'Restaurer ' + name);
+      var tt = document.createElement('span'); tt.className = 'tile ' + info.cls; tt.textContent = info.tile;
+      var tip = document.createElement('span'); tip.className = 'task-tip'; tip.setAttribute('aria-hidden', 'true'); tip.textContent = name;
+      tk.appendChild(tt); tk.appendChild(tip);
       tk.addEventListener('click', function () { a.min = false; renderDesk(); });
       bar.appendChild(tk);
     });
@@ -1589,7 +1595,7 @@
     if (deskZone.hidden) return;
     if (!WINS.length) {
       var em = document.createElement('p'); em.className = 'desk-empty';
-      em.textContent = 'Double-cliquez un ordinateur sur le plan pour ouvrir son bureau.';
+      em.textContent = 'Cliquez sur un ordinateur du plan pour ouvrir son bureau.';
       deskZone.appendChild(em); return;
     }
     // Seuls les bureaux sont au premier niveau ; leurs applications sont dans leur écran
@@ -1599,13 +1605,19 @@
       var dock = document.createElement('div'); dock.className = 'desk-dock'; dock.setAttribute('aria-label', 'Fenêtres réduites');
       reduced.forEach(function (w) {
         var h = N(w.host);
+        var unit = document.createElement('div'); unit.className = 'dock-unit';
         var b = document.createElement('button'); b.type = 'button'; b.className = 'dock-item';
         b.innerHTML = ICON_SCREEN;
         var l = document.createElement('span'); l.textContent = 'Bureau · ' + h.label;
         b.appendChild(l);
         b.title = 'Restaurer';
         b.addEventListener('click', function () { w.min = false; w.z = ++zseq; renderDesk(); });
-        dock.appendChild(b);
+        var x = document.createElement('button'); x.type = 'button'; x.className = 'dock-close';
+        x.innerHTML = ICON_CLOSE;
+        x.setAttribute('aria-label', 'Fermer le bureau de ' + h.label); x.title = 'Fermer le bureau';
+        x.addEventListener('click', function () { closeWin(w.id); });
+        unit.appendChild(b); unit.appendChild(x);
+        dock.appendChild(unit);
       });
       deskZone.appendChild(dock);
     }
@@ -1817,7 +1829,7 @@
     var h = N(termHost.value);
     if (!h) { setStatus('Ajoutez une machine pour utiliser le terminal.'); return; }
     if (!hasSoft(h, 'cmd')) {
-      printTo(h.id, 'La ligne de commande n\'est pas installée sur ' + h.label + '. Double-cliquez l\'ordinateur en simulation, puis installez-la.');
+      printTo(h.id, 'La ligne de commande n\'est pas installée sur ' + h.label + '. Cliquez l\'ordinateur en simulation, puis installez-la.');
       return;
     }
     if ((OUT[h.id] || []).length) printTo(h.id, '');

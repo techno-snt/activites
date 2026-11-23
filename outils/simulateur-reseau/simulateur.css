@@ -313,10 +313,14 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .taskbar .start svg { fill: #ffffff; stroke: none; }
 .taskbar .tray { display: inline-grid; place-items: center; padding: 4px; border-radius: 6px; }
 .taskbar .tray svg { width: 18px; height: 18px; }
-.taskbar span:last-child { margin-left: auto; font-family: var(--mono); }
+.taskbar > span:last-child { margin-left: auto; font-family: var(--mono); }
 /* Fenêtres réduites : barre en haut à droite du plan */
 .desk-dock { position: absolute; right: 12px; top: 12px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; pointer-events: auto; max-width: 60%; }
-.dock-item { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #ffffff; border-radius: 10px; padding: 6px 10px; font: inherit; font-size: .8rem; color: var(--ink); cursor: pointer; box-shadow: 0 2px 8px rgba(15, 27, 61, .14); }
+.dock-unit { display: inline-flex; align-items: stretch; border: 1px solid var(--line); background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(15, 27, 61, .14); }
+.dock-item { display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 6px 10px; font: inherit; font-size: .8rem; color: var(--ink); cursor: pointer; }
+.dock-close { display: grid; place-items: center; width: 30px; border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--ink-soft, #475569); cursor: pointer; padding: 0; }
+.dock-close svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.dock-close:focus-visible, .dock-item:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .dock-item svg { width: 18px; height: 18px; fill: none; stroke: var(--blue); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dwin-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; z-index: 4; touch-action: none; background: linear-gradient(135deg, transparent 0 50%, #94a3b8 50% 56%, transparent 56% 70%, #94a3b8 70% 76%, transparent 76%); }
 .dwin.desk .dwin-grip { background: linear-gradient(135deg, transparent 0 50%, rgba(255,255,255,.7) 50% 56%, transparent 56% 70%, rgba(255,255,255,.7) 70% 76%, transparent 76%); }
@@ -426,7 +430,8 @@ body.sim .plan-hint { display: none; }
   .sw-cols li:hover { background: #f1f5f9; }
   .dwin-btn:hover { background: rgba(255, 255, 255, .18); }
   .desk-screen .desk-icon:hover { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .35); }
-  .dock-item:hover { border-color: var(--blue); }
+  .dock-unit:hover { border-color: var(--blue); }
+  .dock-close:hover { background: #fef2f2; color: #b91c1c; }
   .ptab:hover { background: #eef4ff; }
 }
 
@@ -451,6 +456,16 @@ button:not(:disabled):active { transform: scale(.97); }
 @keyframes dwin-to-bar { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.12); } }
 .dwin.dwin-min-anim { animation: dwin-to-bar 220ms ease-out forwards; }
 /* Fenêtres réduites : un bouton par fenêtre dans la barre des tâches */
-.taskbar .task-item { height: 24px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .14); color: #ffffff; font: inherit; font-size: .72rem; font-weight: 700; padding: 0 8px; margin-left: 6px; cursor: pointer; white-space: nowrap; }
+.taskbar .task-item { position: relative; width: 32px; height: 32px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .14); color: #ffffff; padding: 0; margin-left: 6px; display: grid; place-items: center; cursor: pointer; }
+.taskbar .task-item .tile { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; color: #ffffff; font-weight: 700; font-size: .55rem; background: #2563eb; }
+.taskbar .task-item .tile.cmd { background: #111827; }
+.taskbar .task-item .tile.inst { background: #16a34a; }
+.taskbar .task-item .tile.srv { background: #6b3fc0; }
+.taskbar .task-item .tile.net { background: #0891b2; }
+.task-tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 4px 8px; border-radius: 6px; background: #0f172a; color: #ffffff; font-size: .72rem; font-weight: 600; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.taskbar .task-item:focus-visible .task-tip { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .taskbar .task-item:hover .task-tip { opacity: 1; }
+}
 .taskbar .task-item:hover { background: rgba(255, 255, 255, .24); }
 .taskbar .task-item:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
