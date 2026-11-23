@@ -272,6 +272,8 @@
   var WINS = [], wseq = 0, zseq = 10, deskZone = $('deskZone');
   // Fenêtre flottante : position mémorisée, déplacement par l'en-tête, passage au premier plan au clic
   function decorateWin(win, w, box) {
+    // Entrée animée une seule fois, à l'ouverture (pas à chaque redessin)
+    if (w.fresh) { win.classList.add('dwin-enter'); w.fresh = false; }
     if (w.x === undefined) {
       // Position par défaut : bureau dans le plan ; applications dans l'écran, à droite (terminal) ou au centre (installation)
       var k = w.type === 'desk' ? 0 : WINS.filter(function (x) { return x.host === w.host && x.type !== 'desk'; }).indexOf(w) % 5;
@@ -1216,7 +1218,7 @@
     var ex = WINS.find(function (w) { return w.type === type && w.host === hostId; });
     if (ex) ex.min = false;
     if (!ex) {
-      ex = { id: ++wseq, type: type, host: hostId, pending: (h.software || []).slice(), sel: null };
+      ex = { id: ++wseq, type: type, host: hostId, pending: (h.software || []).slice(), sel: null, fresh: true };
       WINS.push(ex);
     }
     renderDesk();
