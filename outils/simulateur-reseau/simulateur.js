@@ -1232,13 +1232,35 @@
   var ICON_CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   var ICON_SCREEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg>';
   // En-tête de fenêtre : titre, réduire (vers la barre du bas), fermer
+  // Réduire : la fenêtre rejoint la barre des tâches de son bureau (ou le coin du bureau pour un bureau réduit)
+  var TASK_NAMES = { term: 'Ligne de commande', nav: 'Navigateur web', edit: 'Éditeur de textes', trames: 'Échanges de données', install: 'Installation', 'svc-web': 'Serveur web', 'svc-dns': 'Serveur DNS', 'svc-dhcp': 'DHCP' };
+  function minimizeWin(btn, w) {
+    var el = btn.closest('.dwin');
+    if (!el || reducedMotion()) { w.min = true; renderDesk(); return; }
+    var screen = el.closest('.desk-screen'), r = el.getBoundingClientRect(), tgt;
+    if (screen && screen.querySelector('.taskbar')) {
+      var tb = screen.querySelector('.taskbar').getBoundingClientRect();
+      tgt = { x: tb.left + 60, y: tb.top + tb.height / 2 };
+    } else {
+      var zr = deskZone.getBoundingClientRect();
+      tgt = { x: zr.right - 30, y: zr.top + 20 };
+    }
+    el.style.setProperty('--dx', (tgt.x - (r.left + r.width / 2)) + 'px');
+    el.style.setProperty('--dy', (tgt.y - (r.top + r.height / 2)) + 'px');
+    el.style.pointerEvents = 'none';
+    el.classList.add('dwin-min-anim');
+    var done = false;
+    var finish = function () { if (done) return; done = true; w.min = true; renderDesk(); };
+    el.addEventListener('animationend', finish, { once: true });
+    setTimeout(finish, 260);
+  }
   function winHead(w, title, canMin) {
     var head = document.createElement('div'); head.className = 'dwin-head';
     var t = document.createElement('span'); t.textContent = title;
     var ctl = document.createElement('div'); ctl.className = 'dwin-ctl';
     var min = document.createElement('button'); min.type = 'button'; min.className = 'dwin-btn'; min.innerHTML = ICON_MIN;
     min.setAttribute('aria-label', 'Réduire'); min.title = 'Réduire';
-    min.addEventListener('click', function () { w.min = true; renderDesk(); });
+    min.addEventListener('click', function () { minimizeWin(min, w); });
     var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-btn'; close.innerHTML = ICON_CLOSE;
     close.setAttribute('aria-label', 'Fermer'); close.title = 'Fermer';
     close.addEventListener('click', function () { closeWin(w.id); });
@@ -1254,7 +1276,7 @@
     var kind = w.type.slice(4);
     var titles = { web: 'Serveur web', dns: 'Serveur DNS', dhcp: 'Serveur DHCP' };
     var win = document.createElement('section'); win.className = 'dwin app svc'; win.setAttribute('aria-label', titles[kind] + ' de ' + h.label);
-    win.appendChild(winHead(w, titles[kind] + ' · ' + h.label, false));
+    win.appendChild(winHead(w, titles[kind] + ' · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body';
     if (kind === 'web') webFields(h, body);
     if (kind === 'dns') dnsFields(h, body);
@@ -1267,7 +1289,7 @@
   function buildEdit(w, box) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app edit'; win.setAttribute('aria-label', 'Éditeur de textes de ' + h.label);
-    win.appendChild(winHead(w, 'Éditeur de textes · ' + h.label, false));
+    win.appendChild(winHead(w, 'Éditeur de textes · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body edit-body';
     var name = document.createElement('p'); name.className = 'edit-name';
     name.textContent = 'index.html' + (hasSoft(h, 'web') ? ' · publié par le serveur web' : ' · pas de serveur web : fichier non publié');
@@ -1298,7 +1320,7 @@
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app trames-app'; win.setAttribute('data-host', h.id);
     win.setAttribute('aria-label', 'Échanges de données de ' + h.label);
-    win.appendChild(winHead(w, 'Échanges de données · ' + h.label, false));
+    win.appendChild(winHead(w, 'Échanges de données · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body trames-body';
     var tbl = document.createElement('table'); tbl.className = 'rtable trames-table';
     var head = tbl.createTHead().insertRow();
@@ -1318,7 +1340,7 @@
   function buildNav(w, box) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app nav'; win.setAttribute('aria-label', 'Navigateur web de ' + h.label);
-    win.appendChild(winHead(w, 'Navigateur web · ' + h.label, false));
+    win.appendChild(winHead(w, 'Navigateur web · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body nav-body';
     var bar = document.createElement('form'); bar.className = 'nav-bar';
     var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
@@ -1361,7 +1383,7 @@
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app term-app'; win.setAttribute('data-host', h.id);
     win.setAttribute('aria-label', 'Ligne de commande de ' + h.label);
-    win.appendChild(winHead(w, 'Ligne de commande · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')', false));
+    win.appendChild(winHead(w, 'Ligne de commande · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')'));
     var body = document.createElement('div'); body.className = 'dwin-body term-body';
     // Console : la sortie défile, l'invite est sur la dernière ligne (comme dans l'activité)
     var con = document.createElement('div'); con.className = 'term-app-out'; con.setAttribute('aria-label', 'Ligne de commande');
@@ -1451,7 +1473,15 @@
     var start = document.createElement('span'); start.className = 'start'; start.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>';
     var net = document.createElement('span'); net.className = 'tray'; net.innerHTML = ICON_SCREEN;
     var ip = document.createElement('span'); ip.textContent = h.ifaces[0].ip || 'sans IP';
-    bar.appendChild(start); bar.appendChild(net); bar.appendChild(ip);
+    bar.appendChild(start);
+    WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && a.min; }).forEach(function (a) {
+      var tk = document.createElement('button'); tk.type = 'button'; tk.className = 'task-item';
+      tk.textContent = TASK_NAMES[a.type] || 'Fenêtre';
+      tk.title = 'Restaurer la fenêtre';
+      tk.addEventListener('click', function () { a.min = false; renderDesk(); });
+      bar.appendChild(tk);
+    });
+    bar.appendChild(net); bar.appendChild(ip);
     screen.appendChild(bar);
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
@@ -1464,7 +1494,7 @@
   function buildInstall(w, box) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app install'; win.setAttribute('aria-label', 'Installation des logiciels de ' + h.label);
-    win.appendChild(winHead(w, 'Installation des logiciels · ' + h.label, false));
+    win.appendChild(winHead(w, 'Installation des logiciels · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body';
     var cols = document.createElement('div'); cols.className = 'sw-cols';
     function list(heading, ids, side) {
@@ -1822,26 +1852,48 @@
 
   /* ----- Zoom, déplacement du plan, clavier, terminal, palette ----- */
   var VB = { x: -170, y: -90, w: 1440, h: 748 };
-  function applyVB() { svg.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h); }
+  // Changement de cadrage : une transition en ease-in-out (sans mouvement si « réduire les animations »)
+  var vbRaf = 0;
+  function reducedMotion() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function setVBAttr() { svg.setAttribute('viewBox', VB.x + ' ' + VB.y + ' ' + VB.w + ' ' + VB.h); }
+  function applyVB() { if (vbRaf) { cancelAnimationFrame(vbRaf); vbRaf = 0; } setVBAttr(); }
+  function tweenVB(to, ms) {
+    if (vbRaf) { cancelAnimationFrame(vbRaf); vbRaf = 0; }
+    if (!ms || reducedMotion()) { VB.x = to.x; VB.y = to.y; VB.w = to.w; VB.h = to.h; setVBAttr(); return; }
+    var from = { x: VB.x, y: VB.y, w: VB.w, h: VB.h }, t0 = null;
+    var step = function (now) {
+      if (t0 === null) t0 = now;
+      var k = Math.min(1, (now - t0) / ms);
+      var e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      VB.x = from.x + (to.x - from.x) * e; VB.y = from.y + (to.y - from.y) * e;
+      VB.w = from.w + (to.w - from.w) * e; VB.h = from.h + (to.h - from.h) * e;
+      setVBAttr();
+      vbRaf = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    vbRaf = requestAnimationFrame(step);
+  }
   // Mode simulation : le schéma se réduit pour tenir entièrement dans sa zone (à gauche), le bureau occupe l'autre zone
   var savedVB = null;
-  function fitPlan() {
-    if (!isSim()) return;
+  function fitTarget() {
     var r = svg.getBoundingClientRect();
-    if (!r.width || !r.height) return;
+    if (!r.width || !r.height) return null;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     NODES.forEach(function (n) {
       if (n.hidden || n.x == null) return;
       minX = Math.min(minX, n.x - 100); maxX = Math.max(maxX, n.x + 100);
       minY = Math.min(minY, n.y - 90); maxY = Math.max(maxY, n.y + 90);
     });
-    if (minX === Infinity) return;
+    if (minX === Infinity) return null;
     var aspect = r.width / r.height, bw = maxX - minX, bh = maxY - minY;
     var w = Math.max(bw, bh * aspect), h = w / aspect;
-    VB.x = (minX + maxX) / 2 - w / 2; VB.y = (minY + maxY) / 2 - h / 2; VB.w = w; VB.h = h;
-    applyVB();
+    return { x: (minX + maxX) / 2 - w / 2, y: (minY + maxY) / 2 - h / 2, w: w, h: h };
   }
-  window.addEventListener('resize', function () { if (isSim()) fitPlan(); });
+  function fitPlan(instant) {
+    if (!isSim()) return;
+    var t = fitTarget();
+    if (t) tweenVB(t, instant ? 0 : 260);
+  }
+  window.addEventListener('resize', function () { if (isSim()) fitPlan(true); });
   function zoom(f) {
     var cx = VB.x + VB.w / 2, cy = VB.y + VB.h / 2;
     var nw = clamp(VB.w * f, 500, 1800), k = nw / VB.w;
@@ -1942,7 +1994,7 @@
     if (on) savedVB = { x: VB.x, y: VB.y, w: VB.w, h: VB.h };
     document.body.classList.toggle('sim', on);
     if (!on) WINS = [];
-    if (on) fitPlan(); else if (savedVB) { VB.x = savedVB.x; VB.y = savedVB.y; VB.w = savedVB.w; VB.h = savedVB.h; applyVB(); }
+    if (on) fitPlan(false); else if (savedVB) tweenVB(savedVB, 260);
     $('btnSim').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('btnConcept').setAttribute('aria-pressed', on ? 'false' : 'true');
     if (on) { pending = null; mode = 'select'; setStatus('Mode simulation : le plan est verrouillé. Utilisez le terminal.'); }

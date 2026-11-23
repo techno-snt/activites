@@ -439,3 +439,11 @@ button:not(:disabled):active { transform: scale(.97); }
 @keyframes dwin-fade { from { opacity: 0; } to { opacity: 1; } }
 .dwin.dwin-enter { animation: dwin-enter 180ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .dwin.dwin-enter { animation: dwin-fade 180ms ease-out; } }
+
+/* Réduction d'une fenêtre : elle glisse vers la barre des tâches (ease-out, 220 ms) */
+@keyframes dwin-to-bar { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.12); } }
+.dwin.dwin-min-anim { animation: dwin-to-bar 220ms ease-out forwards; }
+/* Fenêtres réduites : un bouton par fenêtre dans la barre des tâches */
+.taskbar .task-item { height: 24px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .14); color: #ffffff; font: inherit; font-size: .72rem; font-weight: 700; padding: 0 8px; margin-left: 6px; cursor: pointer; white-space: nowrap; }
+.taskbar .task-item:hover { background: rgba(255, 255, 255, .24); }
+.taskbar .task-item:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
