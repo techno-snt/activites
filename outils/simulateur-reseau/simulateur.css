@@ -392,6 +392,9 @@ body.sim #canvas { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; }
 body.sim .desk-zone { position: relative; inset: auto; grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; border-left: 2px solid var(--line); background: #e2e8f0; }
 body.sim .legend { left: 12px; right: auto; bottom: 12px; max-width: 200px; }
 body.sim .plan-hint { display: none; }
+.svc-state { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.svc-status { margin: 0; font-size: .85rem; color: var(--ink); }
+.svc-state .dwin-apply { margin-top: 8px; }
 .desk-empty { margin: auto; padding: 24px; text-align: center; color: var(--ink); font-size: .9rem; max-width: 320px; }
 
 /* Configuration : une carte par interface, adresse et masque côte à côte */

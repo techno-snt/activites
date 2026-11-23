@@ -197,6 +197,7 @@
     // La requête DNS part sur le schéma : l'appelant doit faire voyager les paquets (r.legs) avant d'afficher le résultat
     var q = pingCore(hostId, h.dns, 'Requête DNS : ' + name);
     if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable. ' + q.msg, legs: q.legs };
+    if (!svcRunning(dnsNode, 'dns')) return { ok: false, msg: 'Le service DNS est arrêté sur ' + dnsNode.label + '.', legs: q.legs };
     if (!dnsNode.records || !(name in dnsNode.records)) return { ok: false, msg: 'Le serveur DNS ne connaît pas « ' + name + ' ».', legs: q.legs };
     return { ok: true, ip: dnsNode.records[name], legs: q.legs };
   }
@@ -211,6 +212,7 @@
     var srv = null;
     segment(h.id, 0).forEach(function (e) { var x = N(e.n); if (!srv && x && x.dhcpSvc && e.i === 0) srv = x; });
     if (!srv) return { ok: false, msg: 'Aucun serveur DHCP sur ce réseau local. Branchez-le sur le même réseau (sans routeur entre les deux).' };
+    if (!svcRunning(srv, 'dhcp')) return { ok: false, msg: 'Le service DHCP est arrêté sur ' + srv.label + '.' };
     if (!srv.ifaces[0].ip) return { ok: false, msg: srv.label + ' n\'a pas d\'adresse IP : il ne peut pas distribuer d\'adresses.' };
     if (!srv.pool || !srv.pool.start || !srv.pool.end) return { ok: false, msg: srv.label + ' : la plage d\'adresses n\'est pas configurée.' };
     if (ip2(srv.pool.start) > ip2(srv.pool.end)) return { ok: false, msg: 'Plage incohérente : la première adresse est après la dernière.' };
@@ -1208,16 +1210,10 @@
     { id: 'fich', label: 'Explorateur de fichiers', tile: 'Fi', cls: 'net' },
     { id: 'edit', label: 'Éditeur de textes', tile: 'Ed', cls: 'net' },
     { id: 'img', label: 'Afficheur d\'images', tile: 'Im', cls: 'net' },
-    { id: 'fw', label: 'Parefeu', tile: 'Pf', cls: 'srv' },
     { id: 'dns', label: 'Serveur DNS', tile: 'DNS', cls: 'srv' },
     { id: 'dhcp', label: 'Serveur DHCP', tile: 'DHCP', cls: 'srv' },
-    { id: 'gen', label: 'Serveur générique', tile: 'Gén', cls: 'srv' },
-    { id: 'cli', label: 'Client générique', tile: 'Cli', cls: 'net' },
     { id: 'web', label: 'Serveur web', tile: 'Web', cls: 'srv' },
-    { id: 'nav', label: 'Navigateur web', tile: 'Nav', cls: 'net' },
-    { id: 'mailS', label: 'Serveur de messagerie', tile: 'Msg', cls: 'srv' },
-    { id: 'mailC', label: 'Client de messagerie', tile: 'Msg', cls: 'net' },
-    { id: 'p2p', label: 'Gnutella (P2P)', tile: 'P2P', cls: 'net' }
+    { id: 'nav', label: 'Navigateur web', tile: 'Nav', cls: 'net' }
   ];
   var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
   var hasSoft = function (n, id) { return (n.software || []).indexOf(id) >= 0; };
@@ -1226,11 +1222,15 @@
   function defaultPage(n) {
     return '<h1>' + (n.siteName || SITE) + '</h1>\n<p>Bienvenue sur mon site.</p>';
   }
+  // État d'un service (web, dns, dhcp) : en marche par défaut ; arrêté, il ne répond plus
+  function svcRunning(n, kind) { return !(n.svcStop && n.svcStop[kind]); }
+  function setSvcRunning(n, kind, on) { n.svcStop = n.svcStop || {}; n.svcStop[kind] = !on; }
   function setSoftware(n, id, on) {
     n.software = n.software || [];
     var i = n.software.indexOf(id);
     if (on && i < 0) n.software.push(id);
     if (!on && i >= 0) n.software.splice(i, 1);
+    if (on && n.svcStop) delete n.svcStop[id];
     if (id === 'web') { n.web = on; if (on && !n.siteName) n.siteName = SITE; if (on && !n.pageHtml) n.pageHtml = defaultPage(n); }
     if (id === 'dns') { n.dnsSvc = on; if (on && !n.records) n.records = {}; }
     if (id === 'dhcp') {
@@ -1320,6 +1320,20 @@
     var win = document.createElement('section'); win.className = 'dwin app svc'; win.setAttribute('aria-label', titles[kind] + ' de ' + h.label);
     win.appendChild(winHead(w, titles[kind] + ' · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body';
+    // Démarrer ou arrêter le service : un service arrêté ne répond plus aux machines
+    var running = svcRunning(h, kind);
+    var state = document.createElement('div'); state.className = 'svc-state';
+    var stText = document.createElement('p'); stText.className = 'svc-status';
+    stText.textContent = running ? 'Service en marche.' : 'Service arrêté : les machines ne peuvent pas l\'utiliser.';
+    var stBtn = document.createElement('button'); stBtn.type = 'button'; stBtn.className = 'dwin-apply';
+    stBtn.textContent = running ? 'Arrêter le service' : 'Démarrer le service';
+    stBtn.addEventListener('click', function () {
+      setSvcRunning(h, kind, !svcRunning(h, kind));
+      setStatus(titles[kind] + ' ' + (svcRunning(h, kind) ? 'démarré' : 'arrêté') + ' sur ' + h.label + '.');
+      renderDesk();
+    });
+    state.appendChild(stText); state.appendChild(stBtn);
+    body.appendChild(state);
     if (kind === 'web') webFields(h, body);
     if (kind === 'dns') dnsFields(h, body);
     if (kind === 'dhcp') dhcpFields(h, body);
@@ -1754,6 +1768,7 @@
     await flyLegs(p.legs);
     if (!p.ok) return navFinish(w, tok, { status: 'Pas de réponse', error: 'Pas de réponse du serveur : ' + p.msg });
     var srv = N(p.dstNode);
+    if (srv && srv.web && !svcRunning(srv, 'web')) return navFinish(w, tok, { status: 'Connexion refusée', error: 'Le service web de ce serveur est arrêté.' });
     if (!(srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })))
       return navFinish(w, tok, { status: 'Connexion refusée', error: 'Ce serveur n\'a pas de serveur web installé.' });
     if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
