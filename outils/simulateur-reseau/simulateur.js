@@ -961,7 +961,8 @@
   function maskChange(setter) {
     return function (inp) {
       var v = inp.value.trim();
-      if (!maskOK(v)) { setStatus('Masque invalide : « ' + v + ' ». Exemples : 255.255.255.0 ou 255.255.0.0'); inp.value = inp.defaultValue; return; }
+      if (!maskOK(v)) { showFieldError(inp, 'Masque invalide. Exemples : 255.255.255.0 ou 255.255.0.0'); return; }
+      clearFieldError(inp);
       setter(v);
       inp.defaultValue = v;
       setStatus('Enregistré.');
@@ -969,10 +970,24 @@
       refreshHosts();
     };
   }
+  // Erreur affichée sous le champ (relié par aria-describedby) ; la saisie est conservée pour être corrigée
+  function showFieldError(inp, msg) {
+    var wrap = inp.closest('.field'), id = inp.id + '-err';
+    var e = wrap.querySelector('.field-error');
+    if (!e) { e = document.createElement('p'); e.className = 'field-error'; wrap.appendChild(e); }
+    e.id = id; e.textContent = msg;
+    inp.setAttribute('aria-invalid', 'true'); inp.setAttribute('aria-describedby', id);
+  }
+  function clearFieldError(inp) {
+    var e = inp.closest('.field') && inp.closest('.field').querySelector('.field-error');
+    if (e) e.remove();
+    inp.removeAttribute('aria-invalid'); inp.removeAttribute('aria-describedby');
+  }
   function ipChange(setter) {
     return function (inp) {
       var v = inp.value.trim();
-      if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ». Exemple : 192.168.0.11'); inp.value = inp.defaultValue; return; }
+      if (v && !ipOK(v)) { showFieldError(inp, 'Adresse invalide. Exemple : 192.168.0.11'); return; }
+      clearFieldError(inp);
       setter(v);
       inp.defaultValue = v;
       setStatus('Enregistré.');
@@ -1075,22 +1090,34 @@
       field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
     } else if (n.type === 'router') {
-      var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist');
+      var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Sections de configuration');
       var TABS = [['iface', 'Interfaces'], ['conn', 'Connexions'], ['route', 'Routes']];
       var panes = {}, tabBtns = {};
       var showPane = function (k) {
         TABS.forEach(function (t) {
           panes[t[0]].hidden = t[0] !== k;
           tabBtns[t[0]].setAttribute('aria-selected', t[0] === k ? 'true' : 'false');
+          tabBtns[t[0]].tabIndex = t[0] === k ? 0 : -1;
         });
         routerTab = k;
       };
       TABS.forEach(function (t) {
         var b = document.createElement('button'); b.type = 'button'; b.className = 'ptab'; b.setAttribute('role', 'tab'); b.textContent = t[1];
+        b.id = 'rtab-' + t[0]; b.setAttribute('aria-controls', 'rpane-' + t[0]);
         b.addEventListener('click', function () { showPane(t[0]); });
         tabBtns[t[0]] = b; tabs.appendChild(b);
         var pn = document.createElement('div'); pn.className = 'ppane'; pn.setAttribute('role', 'tabpanel');
+        pn.id = 'rpane-' + t[0]; pn.setAttribute('aria-labelledby', 'rtab-' + t[0]);
         panes[t[0]] = pn;
+      });
+      tabs.addEventListener('keydown', function (e) {
+        var ks = TABS.map(function (t) { return t[0]; }), i = ks.indexOf(routerTab), j;
+        if (e.key === 'ArrowRight') j = (i + 1) % ks.length;
+        else if (e.key === 'ArrowLeft') j = (i - 1 + ks.length) % ks.length;
+        else if (e.key === 'Home') j = 0;
+        else if (e.key === 'End') j = ks.length - 1;
+        else return;
+        e.preventDefault(); showPane(ks[j]); tabBtns[ks[j]].focus();
       });
       propsEl.appendChild(tabs);
       TABS.forEach(function (t) { propsEl.appendChild(panes[t[0]]); });
@@ -1251,8 +1278,21 @@
     el.classList.add('dwin-min-anim');
     var done = false;
     var finish = function () { if (done) return; done = true; w.min = true; renderDesk(); };
-    el.addEventListener('animationend', finish, { once: true });
+    el.addEventListener('animationend', function (e) { if (e.target === el) finish(); });
     setTimeout(finish, 260);
+  }
+  // Fermer : la fenêtre s'estompe avant d'être retirée (sans mouvement si « réduire les animations »)
+  function closeAnimated(btn, id) {
+    var el = btn.closest('.dwin');
+    if (!el || reducedMotion()) { closeWin(id); return; }
+    el.style.pointerEvents = 'none';
+    el.classList.add('dwin-leave');
+    var done = false;
+    var fin = function () { if (done) return; done = true; el.removeEventListener('transitionend', onEnd); closeWin(id); };
+    // Seule la fin de la transition de la fenêtre compte (pas celle d'un bouton à l'intérieur, qui remonte jusqu'ici)
+    var onEnd = function (e) { if (e.target === el) fin(); };
+    el.addEventListener('transitionend', onEnd);
+    setTimeout(fin, 220);
   }
   function winHead(w, title, canMin) {
     var head = document.createElement('div'); head.className = 'dwin-head';
@@ -1263,7 +1303,7 @@
     min.addEventListener('click', function () { minimizeWin(min, w); });
     var close = document.createElement('button'); close.type = 'button'; close.className = 'dwin-btn'; close.innerHTML = ICON_CLOSE;
     close.setAttribute('aria-label', 'Fermer'); close.title = 'Fermer';
-    close.addEventListener('click', function () { closeWin(w.id); });
+    close.addEventListener('click', function () { closeAnimated(close, w.id); });
     if (canMin !== false) ctl.appendChild(min);
     ctl.appendChild(close);
     head.appendChild(t); head.appendChild(ctl);
@@ -1744,6 +1784,25 @@
     printTo(h.id, 'Serveur DNS : ' + (h.dns || '(aucun)'));
   }
 
+  // Barre d'outils : un seul arrêt de Tab, flèches gauche et droite pour parcourir les boutons
+  (function () {
+    var bar = document.querySelector('.toolbar'); if (!bar) return;
+    bar.setAttribute('role', 'toolbar');
+    var items = Array.prototype.slice.call(bar.querySelectorAll('button.tb, a.tb'));
+    items.forEach(function (el, i) { el.tabIndex = i === 0 ? 0 : -1; });
+    bar.addEventListener('keydown', function (e) {
+      var i = items.indexOf(document.activeElement), j;
+      if (i < 0) return;
+      if (e.key === 'ArrowRight') j = (i + 1) % items.length;
+      else if (e.key === 'ArrowLeft') j = (i - 1 + items.length) % items.length;
+      else if (e.key === 'Home') j = 0;
+      else if (e.key === 'End') j = items.length - 1;
+      else return;
+      e.preventDefault();
+      items.forEach(function (el, k) { el.tabIndex = k === j ? 0 : -1; });
+      items[j].focus();
+    });
+  })();
   // Historique des commandes saisies, par machine (conservé même si la fenêtre est fermée)
   var cmdHist = {};
   // Une seule commande à la fois : sinon les sorties d'un ping animé se mélangent à la commande suivante

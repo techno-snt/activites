@@ -434,11 +434,18 @@ body.sim .plan-hint { display: none; }
 button:not(:disabled) { transition: transform 150ms ease-out, background-color .15s ease; }
 button:not(:disabled):active { transform: scale(.97); }
 
-/* Ouverture d'une fenêtre : elle apparaît depuis le bureau, sans mouvement si « réduire les animations » */
-@keyframes dwin-enter { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
-@keyframes dwin-fade { from { opacity: 0; } to { opacity: 1; } }
-.dwin.dwin-enter { animation: dwin-enter 180ms ease-out; }
-@media (prefers-reduced-motion: reduce) { .dwin.dwin-enter { animation: dwin-fade 180ms ease-out; } }
+/* Ouverture d'une fenêtre : @starting-style, appliqué une seule fois à l'ouverture (classe dwin-enter) */
+.dwin.dwin-enter { transition: opacity 180ms ease-out, transform 180ms ease-out; }
+@starting-style { .dwin.dwin-enter { opacity: 0; transform: scale(.96); } }
+@media (prefers-reduced-motion: reduce) {
+  .dwin.dwin-enter { transition: opacity 180ms ease-out; }
+  @starting-style { .dwin.dwin-enter { transform: none; } }
+}
+/* Fermeture : fondu puis retrait */
+.dwin.dwin-leave { opacity: 0; transform: scale(.96); transition: opacity 150ms ease-out, transform 150ms ease-out; }
+/* Erreur de saisie sous le champ */
+.field-error { margin: 4px 0 0; color: #b91c1c; font-size: .8rem; font-weight: 600; }
+.field input[aria-invalid="true"] { border-color: #b91c1c; }
 
 /* Réduction d'une fenêtre : elle glisse vers la barre des tâches (ease-out, 220 ms) */
 @keyframes dwin-to-bar { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.12); } }
