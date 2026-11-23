@@ -284,6 +284,16 @@
       else if (w.type === 'term') { w.x = 14 + k * 16; w.y = 110 + k * 12; }
       else { w.x = Math.max(8, Math.round((W - 460) / 2) + k * 24); w.y = 120 + k * 20; }
     }
+    if (w.type.indexOf('svc-') === 0 && w.w === undefined) {
+      // Fenêtre de service : elle reste entièrement dans l'écran du bureau de sa machine
+      var dks = WINS.filter(function (x) { return x.type === 'desk' && x.host === w.host && x.w; })[0];
+      var sw = dks ? dks.w - 2 : W; // l'écran du bureau n'est pas encore dans la page à sa construction
+      w.w = Math.max(200, Math.min(440, sw - 16));
+      w.x = Math.max(8, Math.min(w.x, sw - w.w - 8));
+      var sh = dks ? dks.h - 34 : 420;
+      w.h = Math.max(260, Math.min(460, sh - 40));
+      w.y = Math.max(8, Math.min(w.y, sh - w.h - 8));
+    }
     if (w.type === 'desk' && w.w === undefined) {
       // Le bureau occupe toute la zone de simulation par défaut
       w.w = Math.max(320, (box.clientWidth || 780) - 24); w.h = Math.max(220, (box.clientHeight || 520) - 24);
@@ -296,7 +306,7 @@
       w.w = Math.max(420, bw - 28 - (w.x - 14)); w.h = Math.max(260, bh - 110 - 64);
     }
     win.style.left = w.x + 'px'; win.style.top = w.y + 'px';
-    if (w.w) { win.style.width = w.w + 'px'; win.style.height = w.h + 'px'; }
+    if (w.w) { win.style.width = w.w + 'px'; if (w.h) win.style.height = w.h + 'px'; }
     // Poignée en bas à droite : redimensionner la fenêtre pour suivre les paquets sur le plan
     var grip = document.createElement('div'); grip.className = 'dwin-grip'; grip.title = 'Redimensionner';
     win.appendChild(grip);
@@ -543,9 +553,9 @@
   // Rôles d'un serveur, affichés sous son nom sur le plan
   function rolesOf(n) {
     var r = [];
-    if (n.web) r.push('WEB');
-    if (n.dnsSvc) r.push('DNS');
-    if (n.dhcpSvc) r.push('DHCP');
+    if (n.web) r.push(svcRunning(n, 'web') ? 'WEB' : 'WEB arrêté');
+    if (n.dnsSvc) r.push(svcRunning(n, 'dns') ? 'DNS' : 'DNS arrêté');
+    if (n.dhcpSvc) r.push(svcRunning(n, 'dhcp') ? 'DHCP' : 'DHCP arrêté');
     return r;
   }
   function updateLegend() {
@@ -1003,23 +1013,56 @@
   function webFields(n, parent) {
     field(parent, 'Nom du site', n.siteName || SITE, function (inp) { n.siteName = inp.value.trim() || SITE; inp.value = n.siteName; setStatus('Nom du site enregistré.'); }, 'Le nom affiché sur la page d\'accueil du serveur.');
   }
+  // Enregistrements du serveur DNS, sur le modèle de Filius : nom d'hôte / domaine et adresse IP
   function dnsFields(n, parent) {
-    var lab = document.createElement('label'); lab.className = 'area-label'; lab.textContent = 'Noms connus (un par ligne : nom adresse IP)';
-    var ta = document.createElement('textarea');
-    var show = function () { ta.value = Object.keys(n.records || {}).map(function (k) { return k + ' ' + n.records[k]; }).join('\n'); };
-    show();
-    ta.addEventListener('change', function () {
-      var rec = {}, bad = null;
-      ta.value.split('\n').forEach(function (line) {
-        var parts = line.trim().split(/\s+/);
-        if (parts.length < 2 || !parts[0]) return;
-        if (!ipOK(parts[1])) { bad = parts[1]; return; }
-        rec[parts[0]] = parts[1];
+    var sel = null;
+    var h4 = document.createElement('h4'); h4.className = 'area-label'; h4.textContent = 'Adresse (A)';
+    var nameF = document.createElement('div'); nameF.className = 'field';
+    var nameLab = document.createElement('label'); nameLab.htmlFor = 'dnsName' + (++fid); nameLab.textContent = 'Nom d\'hôte / de domaine :';
+    var nameInp = document.createElement('input'); nameInp.type = 'text'; nameInp.id = nameLab.htmlFor; nameInp.autocomplete = 'off'; nameInp.spellcheck = false;
+    nameF.appendChild(nameLab); nameF.appendChild(nameInp);
+    var ipF = document.createElement('div'); ipF.className = 'field';
+    var ipLab = document.createElement('label'); ipLab.htmlFor = 'dnsIp' + (++fid); ipLab.textContent = 'Adresse IP :';
+    var ipInp = document.createElement('input'); ipInp.type = 'text'; ipInp.id = ipLab.htmlFor; ipInp.autocomplete = 'off'; ipInp.spellcheck = false;
+    ipF.appendChild(ipLab); ipF.appendChild(ipInp);
+    var btns = document.createElement('div'); btns.className = 'dns-btns';
+    var add = document.createElement('button'); add.type = 'button'; add.textContent = 'Ajouter';
+    var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Supprimer la sélection';
+    btns.appendChild(add); btns.appendChild(del);
+    var wrap = document.createElement('div'); wrap.className = 'dns-wrap';
+    var table = document.createElement('table'); table.className = 'dns-table';
+    table.innerHTML = '<thead><tr><th scope="col">Nom d\'hôte / de domaine</th><th scope="col">Adresse IP</th></tr></thead>';
+    var tbody = document.createElement('tbody'); table.appendChild(tbody); wrap.appendChild(table);
+    function rows() {
+      tbody.textContent = '';
+      var keys = Object.keys(n.records || {});
+      if (!keys.length) { var tr0 = tbody.insertRow(); var td0 = tr0.insertCell(); td0.colSpan = 2; td0.className = 'dns-empty'; td0.textContent = 'Aucun enregistrement.'; return; }
+      keys.forEach(function (k) {
+        var tr = tbody.insertRow(); tr.tabIndex = 0;
+        var on = k === sel;
+        tr.className = on ? 'sel' : ''; tr.setAttribute('aria-selected', on ? 'true' : 'false');
+        tr.insertCell().textContent = k; tr.insertCell().textContent = n.records[k];
+        var pick = function () { sel = k; rows(); };
+        tr.addEventListener('click', pick);
+        tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
       });
-      if (bad) { setStatus('Adresse invalide dans les noms : ' + bad); show(); return; }
-      n.records = rec; setStatus('Noms enregistrés.');
+    }
+    add.addEventListener('click', function () {
+      var name = nameInp.value.trim(), ip = ipInp.value.trim();
+      if (!name) { setStatus('Saisissez un nom d\'hôte ou un domaine.'); nameInp.focus(); return; }
+      if (!ipOK(ip)) { showFieldError(ipInp, 'Adresse IP invalide : exemple 192.168.21.1'); return; }
+      clearFieldError(ipInp);
+      n.records = n.records || {}; n.records[name] = ip; sel = null;
+      nameInp.value = ''; ipInp.value = '';
+      setStatus('Enregistrement ajouté : ' + name + ' → ' + ip + '.');
+      rows();
     });
-    parent.appendChild(lab); parent.appendChild(ta);
+    del.addEventListener('click', function () {
+      if (!sel) { setStatus('Sélectionnez un enregistrement dans la liste.'); return; }
+      delete n.records[sel]; setStatus('Enregistrement supprimé : ' + sel + '.'); sel = null; rows();
+    });
+    parent.appendChild(h4); parent.appendChild(nameF); parent.appendChild(ipF); parent.appendChild(btns); parent.appendChild(wrap);
+    rows();
   }
   function dhcpFields(n, parent) {
     var dhelp = document.createElement('p'); dhelp.className = 'help';
@@ -1318,7 +1361,7 @@
     var kind = w.type.slice(4);
     var titles = { web: 'Serveur web', dns: 'Serveur DNS', dhcp: 'Serveur DHCP' };
     var win = document.createElement('section'); win.className = 'dwin app svc'; win.setAttribute('aria-label', titles[kind] + ' de ' + h.label);
-    win.appendChild(winHead(w, titles[kind] + ' · ' + h.label));
+    win.appendChild(winHead(w, h.label.toLowerCase() === titles[kind].toLowerCase() ? titles[kind] : titles[kind] + ' · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body';
     // Démarrer ou arrêter le service : un service arrêté ne répond plus aux machines
     var running = svcRunning(h, kind);
@@ -1330,6 +1373,7 @@
     stBtn.addEventListener('click', function () {
       setSvcRunning(h, kind, !svcRunning(h, kind));
       setStatus(titles[kind] + ' ' + (svcRunning(h, kind) ? 'démarré' : 'arrêté') + ' sur ' + h.label + '.');
+      draw();
       renderDesk();
     });
     state.appendChild(stText); state.appendChild(stBtn);

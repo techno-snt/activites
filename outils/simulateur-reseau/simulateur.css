@@ -392,6 +392,18 @@ body.sim #canvas { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; }
 body.sim .desk-zone { position: relative; inset: auto; grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; border-left: 2px solid var(--line); background: #e2e8f0; }
 body.sim .legend { left: 12px; right: auto; bottom: 12px; max-width: 200px; }
 body.sim .plan-hint { display: none; }
+.dns-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+.dns-btns button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; color: var(--ink); font: inherit; font-size: .85rem; cursor: pointer; }
+.dns-btns button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.dns-wrap { max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.dns-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.dns-table th, .dns-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.dns-table th { background: #f1f5f9; font-weight: 700; }
+.dns-table tbody tr { cursor: pointer; }
+.dns-table tbody tr.sel { background: #dbeafe; }
+.dns-table tbody tr:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.dns-empty { color: #64748b; font-style: italic; }
+.dwin.svc .dwin-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .svc-state { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .svc-status { margin: 0; font-size: .85rem; color: var(--ink); }
 .svc-state .dwin-apply { margin-top: 8px; }
