@@ -132,17 +132,18 @@
         if (!g) return { ok: false, msg: 'La passerelle ' + node.gw + ' ne répond pas : aucun routeur de mon réseau porte cette adresse.', hops: hops };
         hops.push(g.n); cur = g.n; continue;
       }
-      if (!node.defGw) return { ok: false, msg: 'Destination inaccessible.', hops: hops };
+      var gwIP = nextHopOf(node, dst);
+      if (!gwIP) return { ok: false, msg: 'Destination inaccessible.', hops: hops };
       var out = -1, nh = null;
       for (var o = 0; o < node.ifaces.length && !nh; o++) {
         if (!linkAt(cur, o)) continue;
         var ss = segment(cur, o);
         for (var s2 = 0; s2 < ss.length; s2++) {
           var se = ss[s2];
-          if (N(se.n).ifaces && N(se.n).ifaces[se.i] && N(se.n).ifaces[se.i].ip === node.defGw) { out = o; nh = se; break; }
+          if (N(se.n).ifaces && N(se.n).ifaces[se.i] && N(se.n).ifaces[se.i].ip === gwIP) { out = o; nh = se; break; }
         }
       }
-      if (!nh) return { ok: false, msg: 'La passerelle ' + node.defGw + ' du routeur ' + node.label + ' est injoignable.', hops: hops };
+      if (!nh) return { ok: false, msg: 'La passerelle ' + gwIP + ' du routeur ' + node.label + ' est injoignable.', hops: hops };
       if (node.ifaces[out].wan) {
         var inside2 = node.ifaces.some(function (f2, j) { return j !== out && f2.ip && sameNet(f2.ip, maskOf(f2), src); });
         if (inside2) { node.nat = node.nat || {}; node.nat[pid] = src; src = node.ifaces[out].ip; }
@@ -284,7 +285,7 @@
       else if (w.type === 'term') { w.x = 14 + k * 16; w.y = 110 + k * 12; }
       else { w.x = Math.max(8, Math.round((W - 460) / 2) + k * 24); w.y = 120 + k * 20; }
     }
-    if (w.type.indexOf('svc-') === 0 && w.w === undefined) {
+    if ((w.type.indexOf('svc-') === 0 || w.type === 'fich' || w.type === 'img') && w.w === undefined) {
       // Fenêtre de service : elle reste entièrement dans l'écran du bureau de sa machine
       var dks = WINS.filter(function (x) { return x.type === 'desk' && x.host === w.host && x.w; })[0];
       var sw = dks ? dks.w - 2 : W; // l'écran du bureau n'est pas encore dans la page à sa construction
@@ -735,12 +736,25 @@
   /* ----- Table de routage d'un routeur ----- */
   function int2ip(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255].join('.'); }
   function prefixLen(m) { var v = ip2(m), c = 0; while (v) { c += v & 1; v = v >>> 1; } return c; }
+  // Passerelle à utiliser pour une destination hors des réseaux connectés : la route statique la plus précise, sinon la passerelle par défaut
+  function nextHopOf(n, dst) {
+    var best = null;
+    (n.routes || []).forEach(function (r) {
+      if (sameNet(dst, r.mask, r.dst) && (!best || prefixLen(r.mask) > prefixLen(best.mask))) best = r;
+    });
+    return best ? best.gw : (n.defGw || null);
+  }
   function routingRows(n) {
     var rows = [];
     n.ifaces.forEach(function (f, i) {
       if (!f.ip) return;
       var m = maskOf(f);
       rows.push({ dst: int2ip((ip2(f.ip) & ip2(m)) >>> 0) + '/' + prefixLen(m), via: 'directement connecté', iface: 'Interface ' + (i + 1) + (f.wan ? ' (WAN)' : '') });
+    });
+    (n.routes || []).forEach(function (r) {
+      var o = -1;
+      n.ifaces.forEach(function (f, i) { if (o < 0 && f.ip && sameNet(r.gw, maskOf(f), f.ip)) o = i; });
+      rows.push({ dst: int2ip((ip2(r.dst) & ip2(r.mask)) >>> 0) + '/' + prefixLen(r.mask), via: r.gw, iface: o >= 0 ? 'Interface ' + (o + 1) : 'injoignable', route: r });
     });
     if (n.defGw) {
       var out = -1;
@@ -770,28 +784,77 @@
     });
     host.appendChild(t);
   }
+  // Table de routage : les lignes connectées et la passerelle par défaut sont calculées ; les routes ajoutées ici sont modifiables
   function renderRoutingTable(n, host) {
     var title = document.createElement('p'); title.className = 'area-label'; title.textContent = 'Table de routage';
     host.appendChild(title);
-    var rows = routingRows(n);
-    if (!rows.length) {
-      var none = document.createElement('p'); none.className = 'help';
-      none.textContent = 'Configurez les interfaces pour voir les réseaux connus.';
-      host.appendChild(none);
-      return;
-    }
+    var sel = null;
+    var wrap = document.createElement('div'); wrap.className = 'rt-wrap';
     var t = document.createElement('table'); t.className = 'rtable';
     var head = t.createTHead().insertRow();
     ['Destination', 'Passerelle', 'Sortie'].forEach(function (txt) { var th = document.createElement('th'); th.textContent = txt; head.appendChild(th); });
     var body = t.createTBody();
-    rows.forEach(function (r) {
-      var tr = body.insertRow();
-      [r.dst, r.via, r.iface].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+    wrap.appendChild(t); host.appendChild(wrap);
+    function fill() {
+      body.textContent = '';
+      var rows = routingRows(n);
+      if (!rows.length) {
+        var tr0 = body.insertRow(); var td0 = tr0.insertCell(); td0.colSpan = 3; td0.className = 'dns-empty';
+        td0.textContent = 'Configurez les interfaces pour voir les réseaux connus.';
+        return;
+      }
+      rows.forEach(function (r) {
+        var tr = body.insertRow();
+        if (r.route) {
+          var on = r.route === sel;
+          tr.tabIndex = 0; tr.className = (on ? 'sel' : '') + ' user';
+          tr.setAttribute('aria-selected', on ? 'true' : 'false');
+          var pick = function () { sel = r.route; fill(); };
+          tr.addEventListener('click', pick);
+          tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+        }
+        [r.dst, r.via, r.iface].forEach(function (txt) { var td = tr.insertCell(); td.textContent = txt; });
+      });
+    }
+    var form = document.createElement('div'); form.className = 'route-form';
+    var fh = document.createElement('p'); fh.className = 'area-label'; fh.textContent = 'Nouvelle ligne';
+    form.appendChild(fh);
+    var inputs = {};
+    [['dst', 'Destination (adresse du réseau)', ''], ['mask', 'Masque', '255.255.255.0'], ['gw', 'Passerelle suivante', '']].forEach(function (f) {
+      var wrapF = document.createElement('div'); wrapF.className = 'field';
+      var lab = document.createElement('label'); lab.htmlFor = 'rt' + f[0] + (++fid); lab.textContent = f[1] + ' :';
+      var inp = document.createElement('input'); inp.type = 'text'; inp.id = lab.htmlFor; inp.autocomplete = 'off'; inp.spellcheck = false;
+      inp.placeholder = f[2];
+      wrapF.appendChild(lab); wrapF.appendChild(inp); form.appendChild(wrapF);
+      inputs[f[0]] = inp;
     });
-    host.appendChild(t);
-    var how = document.createElement('p'); how.className = 'help';
-    how.textContent = 'Le routeur d\'abord les réseaux qui lui sont directement connectés, puis la route par défaut (0.0.0.0/0) pour tout le reste.';
-    host.appendChild(how);
+    var btns = document.createElement('div'); btns.className = 'dns-btns';
+    var add = document.createElement('button'); add.type = 'button'; add.textContent = 'Ajouter la ligne';
+    var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Supprimer la ligne sélectionnée';
+    btns.appendChild(add); btns.appendChild(del); form.appendChild(btns);
+    host.appendChild(form);
+    add.addEventListener('click', function () {
+      var dst = inputs.dst.value.trim(), mask = inputs.mask.value.trim() || '255.255.255.0', gw = inputs.gw.value.trim();
+      if (!ipOK(dst)) { showFieldError(inputs.dst, 'Adresse de réseau invalide : exemple 192.168.5.0'); return; }
+      clearFieldError(inputs.dst);
+      if (!ipOK(mask)) { showFieldError(inputs.mask, 'Masque invalide : exemple 255.255.255.0'); return; }
+      clearFieldError(inputs.mask);
+      if (!ipOK(gw)) { showFieldError(inputs.gw, 'Passerelle invalide : exemple 192.168.0.254'); return; }
+      clearFieldError(inputs.gw);
+      n.routes = n.routes || [];
+      var net = int2ip((ip2(dst) & ip2(mask)) >>> 0);
+      n.routes = n.routes.filter(function (r) { return !(r.dst === net && r.mask === mask); });
+      n.routes.push({ dst: net, mask: mask, gw: gw });
+      sel = null; inputs.dst.value = ''; inputs.gw.value = '';
+      setStatus('Route ajoutée : ' + net + '/' + prefixLen(mask) + ' via ' + gw + '.');
+      fill();
+    });
+    del.addEventListener('click', function () {
+      if (!sel) { setStatus('Sélectionnez une ligne ajoutée (non grisée) pour la supprimer.'); return; }
+      n.routes = (n.routes || []).filter(function (r) { return r !== sel; });
+      setStatus('Route supprimée.'); sel = null; fill();
+    });
+    fill();
   }
 
   function draw() { buildNetColours(); drawBlocks(); drawLinks(); drawNodes(); }
@@ -852,27 +915,49 @@
       setStatus('Configurez ' + n.label + ' à droite. Glissez l\'appareil pour le déplacer.');
       refresh();
     } else if (mode === 'cable') {
-      if (portSpots(n).length === 1) handlePort(n.id, 0);
-      else setStatus('Cliquez sur un des ports de ' + n.label + ' (les cercles numérotés).');
+      // Comme dans Filius : un clic sur un appareil, puis un clic sur un autre appareil ; le premier port libre est pris
+      if (!pending) { pending = { vis: n.id, idx: null }; setStatus('Cliquez maintenant un autre appareil (ou un de ses ports).'); }
+      else if (pending.vis === n.id) { pending = null; setStatus('Câblage annulé.'); }
+      else linkDevices(pending.vis, pending.idx, n.id, null);
+      refresh();
     } else if (mode === 'delete') {
       removeNode(n.id);
     }
   }
 
-  // Câblage : on clique un port, puis un port de l'autre appareil
+  // Premier port libre d'un appareil (indice dans targetsOf), ou -1
+  function freePortIdx(visId) {
+    var ts = targetsOf(visId);
+    for (var k = 0; k < ts.length; k++) if (ts[k] && !linkAt(ts[k].n, ts[k].i)) return k;
+    return -1;
+  }
+  // Relie deux appareils : idxA ou idxB est null pour prendre le premier port libre
+  function linkDevices(visA, idxA, visB, idxB) {
+    var a = idxA === null ? freePortIdx(visA) : idxA;
+    var b = idxB === null ? freePortIdx(visB) : idxB;
+    var na = N(visA), nb = N(visB);
+    if (a < 0) { pending = null; setStatus('Plus de port libre sur ' + na.label + '.'); return; }
+    if (b < 0) { pending = null; setStatus('Plus de port libre sur ' + nb.label + '.'); return; }
+    var r = addLink(targetsOf(visA)[a], targetsOf(visB)[b]);
+    setStatus(r.ok ? 'Câble branché.' : r.msg);
+    pending = null;
+  }
+
+  // Câblage : on clique un port (ou un appareil), puis un port (ou un appareil) de l'autre
   function handlePort(visId, idx) {
     var t = targetsOf(visId)[idx];
     if (!t) return;
-    if (!pending) {
+    if (pending && pending.idx === null) {
+      if (pending.vis === visId) { pending = null; setStatus('Câblage annulé.'); }
+      else linkDevices(pending.vis, null, visId, idx);
+    } else if (!pending) {
       if (linkAt(t.n, t.i)) { setStatus('Ce port est déjà branché. Choisissez-en un autre.'); }
       else { pending = { vis: visId, idx: idx }; setStatus('Cliquez maintenant un port de l\'autre appareil.'); }
     } else if (pending.vis === visId && pending.idx === idx) {
       pending = null;
       setStatus('Câblage annulé.');
     } else {
-      var r = addLink(targetsOf(pending.vis)[pending.idx], t);
-      setStatus(r.ok ? 'Câble branché.' : r.msg);
-      pending = null;
+      linkDevices(pending.vis, pending.idx, visId, idx);
     }
     refresh();
   }
@@ -952,7 +1037,7 @@
   function setMode(m) {
     if (isSim() && m !== 'select') { setStatus('Plan verrouillé en mode simulation.'); return; }
     mode = m; pending = null;
-    setStatus(m === 'cable' ? 'Glissez d\'un port à un autre pour relier. Échap ou l\'outil Sélection pour sortir.' : m === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer. Échap pour sortir.' : 'Cliquez un appareil pour le configurer.');
+    setStatus(m === 'cable' ? 'Cliquez un appareil, puis un autre pour les relier. Clic droit sur le plan ou Échap pour sortir.' : m === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer. Échap pour sortir.' : 'Cliquez un appareil pour le configurer.');
     refresh();
   }
 
@@ -1281,14 +1366,16 @@
       if (on) { if (!n.pool) n.pool = { start: '', end: '' }; if (n.dhcpGw === undefined) n.dhcpGw = ''; if (n.dhcpDns === undefined) n.dhcpDns = ''; if (!n.leases) n.leases = {}; }
     }
   }
-  function openWin(type, hostId) {
+  function openWin(type, hostId, extra) {
     if (!isSim()) return;
     var h = N(hostId);
     if (!h || h.type === 'switch' || h.type === 'router') return;
-    var ex = WINS.find(function (w) { return w.type === type && w.host === hostId; });
+    var ex = WINS.find(function (w) { return w.type === type && w.host === hostId && (!extra || w.file === extra.file); });
     if (ex) ex.min = false;
     if (!ex) {
       ex = { id: ++wseq, type: type, host: hostId, pending: (h.software || []).slice(), sel: null, fresh: true };
+      if (extra) { ex.file = extra.file; ex.folder = extra.folder; }
+      if (type === 'fich') ex.folder = 'webserver';
       WINS.push(ex);
     }
     renderDesk();
@@ -1303,9 +1390,9 @@
   var ICON_SCREEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z M8 20h8 M12 16v4"/></svg>';
   // En-tête de fenêtre : titre, réduire (vers la barre du bas), fermer
   // Réduire : la fenêtre rejoint la barre des tâches de son bureau (ou le coin du bureau pour un bureau réduit)
-  var TASK_NAMES = { term: 'Ligne de commande', nav: 'Navigateur web', edit: 'Éditeur de textes', trames: 'Échanges de données', install: 'Installation', 'svc-web': 'Serveur web', 'svc-dns': 'Serveur DNS', 'svc-dhcp': 'DHCP' };
+  var TASK_NAMES = { term: 'Ligne de commande', nav: 'Navigateur web', edit: 'Éditeur de textes', trames: 'Échanges de données', install: 'Installation', 'svc-web': 'Serveur web', 'svc-dns': 'Serveur DNS', 'svc-dhcp': 'DHCP', fich: 'Explorateur de fichiers', img: 'Afficheur d\'images' };
   // Pastilles reprises des icônes du bureau, pour la barre des tâches
-  var TASK_TILES = { term: { tile: '>_', cls: 'cmd' }, nav: { tile: 'Nav', cls: 'net' }, edit: { tile: 'Ed', cls: 'net' }, trames: { tile: 'Tr', cls: 'net' }, install: { tile: '+', cls: 'inst' }, 'svc-web': { tile: 'Web', cls: 'srv' }, 'svc-dns': { tile: 'DNS', cls: 'srv' }, 'svc-dhcp': { tile: 'DHCP', cls: 'srv' } };
+  var TASK_TILES = { term: { tile: '>_', cls: 'cmd' }, nav: { tile: 'Nav', cls: 'net' }, edit: { tile: 'Ed', cls: 'net' }, trames: { tile: 'Tr', cls: 'net' }, install: { tile: '+', cls: 'inst' }, 'svc-web': { tile: 'Web', cls: 'srv' }, 'svc-dns': { tile: 'DNS', cls: 'srv' }, 'svc-dhcp': { tile: 'DHCP', cls: 'srv' }, fich: { tile: 'Fi', cls: 'net' }, img: { tile: 'Im', cls: 'net' } };
   function minimizeWin(btn, w) {
     var el = btn.closest('.dwin');
     if (!el || reducedMotion()) { w.min = true; renderDesk(); return; }
@@ -1386,6 +1473,108 @@
     return win;
   }
   // Éditeur de textes : modifie le fichier index.html du site de la machine
+  /* ----- Fichiers des machines : explorateur et afficheur d'images ----- */
+  var MAX_IMG = 200 * 1024; // taille maximale d'une image importée, en octets
+  function filesOf(n, folder) { n.files = n.files || {}; n.files[folder] = n.files[folder] || {}; return n.files[folder]; }
+  // Dans la page publiée, une image est référencée par son nom : on la remplace par l'image importée
+  function withImages(srv, html) {
+    var imgs = (srv.files && srv.files.webserver) || {};
+    Object.keys(imgs).forEach(function (name) {
+      var esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      html = html.replace(new RegExp('(src=["\'])' + esc + '(["\'])', 'g'), function (m, a, b) { return a + imgs[name].data + b; });
+    });
+    return html;
+  }
+  function buildFich(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app fich'; win.setAttribute('aria-label', 'Explorateur de fichiers de ' + h.label);
+    win.appendChild(winHead(w, 'Explorateur de fichiers · ' + h.label));
+    var body = document.createElement('div'); body.className = 'dwin-body fich-body';
+    var bar = document.createElement('div'); bar.className = 'dns-btns';
+    var refresh = document.createElement('button'); refresh.type = 'button'; refresh.textContent = 'Actualiser';
+    var imp = document.createElement('button'); imp.type = 'button'; imp.textContent = 'Importer une image';
+    var file = document.createElement('input'); file.type = 'file'; file.accept = 'image/png,image/jpeg,image/gif,image/svg+xml,image/webp'; file.className = 'fich-file'; file.tabIndex = -1;
+    file.setAttribute('aria-hidden', 'true');
+    bar.appendChild(refresh); bar.appendChild(imp); bar.appendChild(file);
+    var cols = document.createElement('div'); cols.className = 'fich-cols';
+    var tree = document.createElement('div'); tree.className = 'fich-tree'; tree.setAttribute('aria-label', 'Dossiers');
+    var list = document.createElement('div'); list.className = 'fich-list'; list.setAttribute('aria-label', 'Fichiers du dossier');
+    cols.appendChild(tree); cols.appendChild(list);
+    body.appendChild(bar); body.appendChild(cols);
+    win.appendChild(body);
+    function renderTree() {
+      tree.textContent = '';
+      [['root', 'root', 0], ['dns', 'dns', 1], ['webserver', 'webserver', 1]].forEach(function (f) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'fich-folder' + (w.folder === f[0] ? ' on' : '');
+        b.style.paddingLeft = (8 + f[2] * 16) + 'px';
+        b.textContent = (f[2] ? '▸ ' : '') + f[1];
+        b.setAttribute('aria-pressed', w.folder === f[0] ? 'true' : 'false');
+        b.addEventListener('click', function () { w.folder = f[0]; renderTree(); renderList(); });
+        tree.appendChild(b);
+      });
+    }
+    function renderList() {
+      list.textContent = '';
+      if (w.folder === 'root') { note('Choisissez un dossier.'); return; }
+      var items = [];
+      if (w.folder === 'webserver') items.push({ name: 'index.html', kind: 'html' });
+      var f = (h.files && h.files[w.folder]) || {};
+      Object.keys(f).forEach(function (k) { items.push({ name: k, kind: f[k].kind }); });
+      if (!items.length) { note('Dossier vide.'); return; }
+      items.forEach(function (it) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'fich-item';
+        b.textContent = it.name;
+        var k = document.createElement('small'); k.textContent = it.kind === 'html' ? 'page web' : 'image';
+        b.appendChild(k);
+        b.addEventListener('click', function () {
+          if (it.kind === 'html') openWin('edit', h.id);
+          else openWin('img', h.id, { file: it.name, folder: w.folder });
+        });
+        list.appendChild(b);
+      });
+    }
+    function note(txt) { var p = document.createElement('p'); p.className = 'fich-note'; p.textContent = txt; list.appendChild(p); }
+    refresh.addEventListener('click', function () { renderList(); setStatus('Dossier actualisé.'); });
+    imp.addEventListener('click', function () {
+      if (w.folder === 'root') { setStatus('Choisissez d\'abord un dossier pour importer une image.'); return; }
+      file.click();
+    });
+    file.addEventListener('change', function () {
+      var f = file.files && file.files[0];
+      file.value = '';
+      if (!f) return;
+      if (!/^image\//.test(f.type)) { setStatus('Seules les images peuvent être importées.'); return; }
+      if (f.size > MAX_IMG) { setStatus('Image trop lourde : 200 Ko maximum.'); return; }
+      if (f.name === 'index.html') { setStatus('Ce nom est réservé à la page du serveur web.'); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        filesOf(h, w.folder)[f.name] = { kind: 'image', data: reader.result };
+        setStatus('Image importée : ' + f.name + '.');
+        renderList();
+      };
+      reader.readAsDataURL(f);
+    });
+    renderTree(); renderList();
+    decorateWin(win, w, box);
+    return win;
+  }
+  function buildImg(w, box) {
+    var h = N(w.host);
+    var win = document.createElement('section'); win.className = 'dwin app img'; win.setAttribute('aria-label', 'Afficheur d\'images : ' + w.file);
+    win.appendChild(winHead(w, w.file));
+    var body = document.createElement('div'); body.className = 'dwin-body img-body';
+    var rec = h.files && h.files[w.folder] && h.files[w.folder][w.file];
+    if (rec) {
+      var im = document.createElement('img'); im.className = 'img-view'; im.src = rec.data; im.alt = w.file;
+      body.appendChild(im);
+    } else {
+      var p = document.createElement('p'); p.className = 'fich-note'; p.textContent = 'Fichier introuvable.';
+      body.appendChild(p);
+    }
+    win.appendChild(body);
+    decorateWin(win, w, box);
+    return win;
+  }
   function buildEdit(w, box) {
     var h = N(w.host);
     var win = document.createElement('section'); win.className = 'dwin app edit'; win.setAttribute('aria-label', 'Éditeur de textes de ' + h.label);
@@ -1558,6 +1747,8 @@
         else if (a.id === 'web' || a.id === 'dns' || a.id === 'dhcp') openWin('svc-' + a.id, h.id);
         else if (a.id === 'nav') openWin('nav', h.id);
         else if (a.id === 'edit') openWin('edit', h.id);
+        else if (a.id === 'fich') openWin('fich', h.id);
+        else if (a.id === 'img') setStatus('Ouvrez une image depuis l\'explorateur de fichiers.');
         else if (a.id === 'trames') openWin('trames', h.id);
         else setStatus(a.label + ' : pas encore disponible dans le simulateur.');
       });
@@ -1590,7 +1781,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'trames' ? buildTrames(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : buildInstall(a, screen));
+      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'trames' ? buildTrames(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : a.type === 'fich' ? buildFich(a, screen) : a.type === 'img' ? buildImg(a, screen) : buildInstall(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
@@ -1816,7 +2007,7 @@
     if (!(srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })))
       return navFinish(w, tok, { status: 'Connexion refusée', error: 'Ce serveur n\'a pas de serveur web installé.' });
     if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
-    navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https, html: srv.pageHtml || defaultPage(srv) } });
+    navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https, html: withImages(srv, srv.pageHtml || defaultPage(srv)) } });
   }
 
   // Adresse de l'interface d'un appareil par laquelle arrive une trame venant de prevId
