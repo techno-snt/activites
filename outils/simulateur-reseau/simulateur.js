@@ -314,10 +314,10 @@
     if (w.x === undefined) {
       // Position par défaut : bureau dans le plan ; applications dans l'écran, à droite (terminal) ou au centre (installation)
       var k = w.type === 'desk' ? 0 : WINS.filter(function (x) { return x.host === w.host && x.type !== 'desk'; }).indexOf(w) % 5;
-      var W = box.clientWidth || 780; // l'écran n'est pas encore dans la page au moment de sa construction
+      var W = box.clientWidth || 470; // largeur d'un écran de bureau, quand il n'est pas encore dans la page
       if (w.type === 'desk') { w.x = 12; w.y = 12; }
       else if (w.type === 'term') { w.x = 14 + k * 16; w.y = 110 + k * 12; }
-      else { w.x = Math.max(8, Math.round((W - 460) / 2) + k * 24); w.y = 120 + k * 20; }
+      else { w.x = Math.max(8, Math.min(W - 460 - 8, Math.round((W - 460) / 2) + k * 24)); w.y = 120 + k * 20; }
     }
     if ((w.type.indexOf('svc-') === 0 || w.type === 'fich' || w.type === 'img') && w.w === undefined) {
       // Fenêtre de service : elle reste entièrement dans l'écran du bureau de sa machine
