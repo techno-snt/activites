@@ -64,7 +64,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 .pal-group { position: relative; width: 100%; display: flex; justify-content: center; }
 .pal-fly {
   display: none; position: absolute; left: calc(100% + 4px); top: 0; z-index: 30;
-  flex-wrap: wrap; gap: 4px; padding: 6px; width: calc(min(var(--n, 3), 3) * 80px + 8px);
+  flex-wrap: wrap; gap: 4px; padding: 6px; width: calc(min(var(--n, 3), 3) * 80px + 10px);
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 27, 61, .16);
 }
