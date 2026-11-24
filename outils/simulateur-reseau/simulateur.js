@@ -2522,6 +2522,9 @@
       cat.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
     g.querySelectorAll('.pal-fly button').forEach(function (b) { b.addEventListener('click', closeFlies); });
+    // Largeur du menu selon son nombre d'icônes (3 colonnes au maximum)
+    var fly = g.querySelector('.pal-fly');
+    if (fly) fly.style.setProperty('--n', fly.querySelectorAll('button').length);
   });
   document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.pal-group'))) closeFlies(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeFlies(); });
