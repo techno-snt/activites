@@ -429,6 +429,12 @@
         n.lan = s.id;
         LINKS.push({ a: { n: n.id, i: 0 }, b: { n: s.id, i: SWITCH_PORTS - 1 } });
       }
+      if (k.box) {
+        // Box de l'opérateur : elle est la passerelle du réseau local et distribue les adresses (DHCP)
+        n.ifaces[0].ip = '192.168.1.1'; n.ifaces[0].mask = '255.255.255.0';
+        n.dhcpSvc = true; n.pool = { start: '192.168.1.10', end: '192.168.1.100' };
+        n.dhcpGw = '192.168.1.1'; n.dhcpDns = ''; n.leases = {}; n.software = ['dhcp'];
+      }
     } else if (k.type !== 'switch') {
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
       if (k.sansFil) n.ifaces[0].wifi = true;
