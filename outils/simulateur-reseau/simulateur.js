@@ -406,7 +406,8 @@
     if (parent) parent.appendChild(e);
     return e;
   }
-  function setStatus(msg) { statusEl.textContent = msg; }
+  // warn : message d'alerte (réseau introuvable, erreur) affiché en couleur pour se voir
+  function setStatus(msg, warn) { statusEl.textContent = msg; statusEl.classList.toggle('warn', !!warn); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   // Espace de travail du plan : assez grand pour que rien ne soit bloqué par une limite invisible
   var WORLD = { x0: -2500, x1: 2500, y0: -1800, y1: 1800 };
@@ -1395,11 +1396,11 @@
       var wcl = document.createElement('label'); wcl.htmlFor = wcb.id; wcl.textContent = 'Connexion sans fil (Wi-Fi)';
       wwrap.appendChild(wcb); wwrap.appendChild(wcl); propsEl.appendChild(wwrap);
       if (f0.wifi) {
-        field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); var st = wifiState(n); setStatus(st && !st.ok ? st.msg : 'Nom du réseau enregistré.'); draw(); refresh(); });
+        field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); var stt = wifiState(n); setStatus(stt && !stt.ok ? stt.msg : 'Nom du réseau enregistré.', !!(stt && !stt.ok)); draw(); refresh(); });
         field(propsEl, 'Mot de passe Wi-Fi', f0.pwd, function (inp) { f0.pwd = inp.value; setStatus('Mot de passe enregistré.'); draw(); refresh(); });
         var w0 = wifiOf(n);
         var st = document.createElement('p'); st.className = 'help';
-        st.textContent = w0 ? 'Connecté au routeur Wi-Fi « ' + w0.label + ' ».' : ((wifiState(n) || {}).msg || 'Pas de connexion.');
+        var ws = wifiState(n); st.textContent = w0 ? 'Connecté au routeur Wi-Fi « ' + w0.label + ' ».' : ((ws || {}).msg || 'Pas de connexion.'); st.classList.toggle('warn', !w0 && !!ws && !ws.ok);
         propsEl.appendChild(st);
       }
       field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));

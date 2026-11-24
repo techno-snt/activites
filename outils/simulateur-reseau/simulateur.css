@@ -163,6 +163,7 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .field.check input { width: 18px; height: 18px; }
 .field.check label { font-weight: 400; }
 .help { font-size: .87rem; color: var(--muted); margin: 0 0 10px; max-width: none; }
+.warn { color: #b42318; font-weight: 700; }
 .iface-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .iface-bar button {
   font: inherit; font-size: .88rem; font-weight: 700; background: var(--surface); color: var(--ink);
