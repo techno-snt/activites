@@ -1885,7 +1885,17 @@
         var s = softOf(id); if (!s) return;
         var li = document.createElement('li'); li.textContent = s.label; li.setAttribute('role', 'option');
         li.setAttribute('aria-selected', w.sel && w.sel.side === side && w.sel.id === id ? 'true' : 'false');
-        li.addEventListener('click', function () { w.sel = { side: side, id: id }; renderDesk(); });
+        // Clic simple : sélection sans reconstruire la liste, pour que le double clic reste sur le même élément
+        li.addEventListener('click', function () {
+          w.sel = { side: side, id: id };
+          win.querySelectorAll('li[role="option"]').forEach(function (x) { x.setAttribute('aria-selected', x === li ? 'true' : 'false'); });
+        });
+        // Double clic : même effet que la flèche (installer dans « Disponibles », désinstaller dans « Installés »)
+        li.addEventListener('dblclick', function () {
+          if (side === 'R') w.pending.push(id);
+          else w.pending = w.pending.filter(function (x) { return x !== id; });
+          w.sel = null; renderDesk();
+        });
         ul.appendChild(li);
       });
       col.appendChild(ul);
