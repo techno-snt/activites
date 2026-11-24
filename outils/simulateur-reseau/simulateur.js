@@ -2487,7 +2487,7 @@
   function isSim() { return document.body.classList.contains('sim'); }
   function updateBadge() {
     var sim = isSim();
-    $('modeBadge').textContent = sim ? 'Mode simulation' : 'Mode conception';
+    $('modeText').textContent = sim ? 'Mode simulation' : 'Mode conception';
     $('planHint').textContent = sim ? 'Plan verrouillé : lancez vos tests dans le terminal.'
       : mode === 'cable' ? 'Maintenez le clic sur un port, puis relâchez-le sur un autre port.'
       : mode === 'delete' ? 'Cliquez un appareil ou un câble pour le supprimer.'
@@ -2515,6 +2515,7 @@
   });
   $('btnConcept').addEventListener('click', function () { setSim(false); });
   $('btnSim').addEventListener('click', function () { setSim(true); });
+  $('modeBadge').addEventListener('click', function () { setSim(!isSim()); });
 
   // Familles de la palette : icône = celle du premier appareil du menu ; le menu s'ouvre à droite (survol, clic ou clavier)
   function closeFlies() {

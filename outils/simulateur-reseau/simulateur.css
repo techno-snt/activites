@@ -232,6 +232,13 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
   background: rgba(255, 255, 255, .92); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-size: .85rem;
 }
 body.sim .plan-badge { color: var(--ok); }
+.plan-badge { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: inherit; }
+.plan-badge:hover { border-color: var(--blue); }
+.plan-badge:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.plan-badge .mi { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.plan-badge .mi-play { fill: currentColor; stroke: none; display: none; }
+body.sim .plan-badge .mi-play { display: inline; }
+body.sim .plan-badge .mi-edit { display: none; }
 
 /* Mode simulation : le plan et la configuration sont verrouillés */
 body.sim .palette button { pointer-events: none; opacity: .4; }

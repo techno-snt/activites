@@ -115,7 +115,11 @@
 
   <main class="stage">
     <div class="canvas-wrap" id="canvasWrap">
-      <span class="plan-badge" id="modeBadge" role="status">Mode conception</span>
+      <button type="button" class="plan-badge" id="modeBadge" title="Cliquer pour passer en mode conception ou simulation">
+        <svg class="mi mi-edit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>
+        <svg class="mi mi-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>
+        <span id="modeText">Mode conception</span>
+      </button>
       <p class="plan-hint" id="planHint"></p>
       <div class="legend" id="legend" aria-label="Légende des couleurs"></div>
       <section class="desk-zone" id="deskZone" aria-label="Bureaux des ordinateurs (simulation)" hidden></section>
