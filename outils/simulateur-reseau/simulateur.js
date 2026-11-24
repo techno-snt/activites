@@ -397,6 +397,9 @@
     printer: { label: 'Imprimante', type: 'pc' },
     tv: { label: 'Smart TV', type: 'pc', sansFil: true },
     iot: { label: 'Objet connecté', type: 'pc', sansFil: true },
+    // Nœuds virtuels : Internet n'est pas simulé en détail, ils représentent l'opérateur et les serveurs distants
+    operator: { label: 'Opérateur internet', type: 'router', virtual: true },
+    datacenter: { label: 'Datacenter', type: 'pc', virtual: true },
   };
   // Routeur Wi-Fi ou Box : ils diffusent un réseau sans fil (SSID et mot de passe)
   function isWifiRouter(n) { return n.kind === 'wifi' || n.kind === 'box'; }
@@ -536,6 +539,12 @@
       el('circle', { cx: 0, cy: 0, r: 16, class: 'body' }, g);
       el('path', { d: 'M-7 0 Q0 -7 7 0 M-12 -5 Q0 -17 12 -5', class: 'lines' }, g);
       el('circle', { cx: 0, cy: 6, r: 2, class: 'dot' }, g);
+    } else if (k === 'operator') {
+      el('path', { d: 'M-24 8 Q-38 8 -34 -4 Q-32 -18 -16 -14 Q-6 -30 10 -22 Q28 -24 28 -6 Q38 -2 34 8 Z', class: 'body' }, g);
+      el('circle', { cx: 0, cy: -2, r: 5, class: 'lines' }, g);
+    } else if (k === 'datacenter') {
+      el('rect', { x: -28, y: -24, width: 56, height: 46, rx: 3, class: 'body' }, g);
+      [-14, 0, 14].forEach(function (y) { el('line', { x1: -20, y1: y - 6, x2: 20, y2: y - 6, class: 'lines' }, g); el('circle', { cx: 16, cy: y - 8, r: 2, class: 'dot' }, g); });
     } else if (k === 'box') {
       el('rect', { x: -34, y: -8, width: 68, height: 26, rx: 5, class: 'body' }, g);
       el('path', { d: 'M-20 -8 L-26 -26 M20 -8 L26 -26', class: 'lines' }, g);
