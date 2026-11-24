@@ -1382,7 +1382,14 @@
       var wcb = document.createElement('input'); wcb.type = 'checkbox'; wcb.id = 'f' + (++fid); wcb.checked = !!f0.wifi;
       wcb.addEventListener('change', function () {
         f0.wifi = wcb.checked;
-        setStatus(wcb.checked ? 'Connexion sans fil : saisissez le nom du réseau.' : 'Connexion filaire.');
+        var removed = 0;
+        if (wcb.checked) {
+          // Un appareil sans fil ne garde aucun câble : on retire ceux qui étaient déjà branchés
+          var before = LINKS.length;
+          LINKS = LINKS.filter(function (l) { return l.wireless || (l.a.n !== n.id && l.b.n !== n.id); });
+          removed = before - LINKS.length;
+        }
+        setStatus(wcb.checked ? 'Connexion sans fil : saisissez le nom du réseau.' + (removed ? ' Câble retiré.' : '') : 'Connexion filaire.');
         draw(); refresh();
       });
       var wcl = document.createElement('label'); wcl.htmlFor = wcb.id; wcl.textContent = 'Connexion sans fil (Wi-Fi)';
