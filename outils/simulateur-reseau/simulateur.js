@@ -407,6 +407,8 @@
   }
   function setStatus(msg) { statusEl.textContent = msg; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  // Espace de travail du plan : assez grand pour que rien ne soit bloqué par une limite invisible
+  var WORLD = { x0: -2500, x1: 2500, y0: -1800, y1: 1800 };
   function setPos(n, x, y) {
     n.x = x; n.y = y;
     if (n.lan) { var s = N(n.lan); if (s) { s.x = x; s.y = y; } }
@@ -753,8 +755,8 @@
     if (!bdrag) return;
     var d = bdrag, p = toSvg(e);
     if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 3) d.moved = true;
-    d.b.x = clamp(p.x - d.dx, 20, 980 - d.b.w);
-    d.b.y = clamp(p.y - d.dy, 20, 500 - d.b.h);
+    d.b.x = clamp(p.x - d.dx, WORLD.x0, WORLD.x1 - d.b.w);
+    d.b.y = clamp(p.y - d.dy, WORLD.y0, WORLD.y1 - d.b.h);
     d.g.setAttribute('transform', 'translate(' + d.b.x + ',' + d.b.y + ')');
     d.g.__handle.setAttribute('x', d.b.x + d.b.w - 18); d.g.__handle.setAttribute('y', d.b.y + d.b.h - 18);
     d.members.forEach(function (m) { setPos(m.n, d.b.x + m.ox, d.b.y + m.oy); });
@@ -776,8 +778,8 @@
   function resizeMove(e, b, g, h) {
     if (!rdrag) return;
     var p = toSvg(e);
-    b.w = clamp(p.x - b.x, 140, 960 - b.x);
-    b.h = clamp(p.y - b.y, 100, 500 - b.y);
+    b.w = clamp(p.x - b.x, 140, WORLD.x1 - b.x);
+    b.h = clamp(p.y - b.y, 100, WORLD.y1 - b.y);
     g.querySelector('.block-box').setAttribute('width', b.w);
     g.querySelector('.block-box').setAttribute('height', b.h);
     h.setAttribute('x', b.x + b.w - 18); h.setAttribute('y', b.y + b.h - 18);
@@ -785,7 +787,7 @@
   function resizeUp() { if (!rdrag) return; rdrag = null; refresh(); }
   function addBlock() {
     var p = freeSpot(), w = 240, h = 170;
-    var b = { id: 'K' + (++seq), label: 'Nouveau bloc', x: clamp(p.x - w / 2, 20, 980 - w), y: clamp(p.y - h / 2, 20, 500 - h), w: w, h: h };
+    var b = { id: 'K' + (++seq), label: 'Nouveau bloc', x: clamp(p.x - w / 2, WORLD.x0, WORLD.x1 - w), y: clamp(p.y - h / 2, WORLD.y0, WORLD.y1 - h), w: w, h: h };
     BLOCKS.push(b);
     selBlock = b.id; selected = null;
     setStatus('Bloc ajouté. Renommez-le à droite, puis glissez-le pour y ranger des appareils.');
@@ -967,7 +969,7 @@
     if (!drag || drag.g !== g) return;
     var p = toSvg(e);
     if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 3) drag.moved = true;
-    setPos(drag.n, clamp(p.x - drag.dx, 60, 940), clamp(p.y - drag.dy, 50, 470));
+    setPos(drag.n, clamp(p.x - drag.dx, WORLD.x0, WORLD.x1), clamp(p.y - drag.dy, WORLD.y0, WORLD.y1));
     g.setAttribute('transform', 'translate(' + drag.n.x + ',' + drag.n.y + ')');
     drawLinks();
   }
@@ -2387,7 +2389,7 @@
   window.addEventListener('resize', function () { if (isSim()) fitPlan(true); });
   function zoom(f) {
     var cx = VB.x + VB.w / 2, cy = VB.y + VB.h / 2;
-    var nw = clamp(VB.w * f, 500, 1800), k = nw / VB.w;
+    var nw = clamp(VB.w * f, 400, 9000), k = nw / VB.w;
     VB.w = nw; VB.h = VB.h * k;
     VB.x = cx - VB.w / 2; VB.y = cy - VB.h / 2;
     applyVB();
@@ -2548,7 +2550,7 @@
     var kind = e.dataTransfer.getData('text/plain');
     if (!KINDS[kind] || isSim()) return;
     var p = toSvg(e);
-    var n = makeNode(kind, clamp(p.x, 60, 940), clamp(p.y, 50, 470));
+    var n = makeNode(kind, clamp(p.x, WORLD.x0, WORLD.x1), clamp(p.y, WORLD.y0, WORLD.y1));
     NODES.push(n);
     selected = n.id;
     setStatus(n.label + ' posé sur le plan. Configurez-le à droite.');
