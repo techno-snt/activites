@@ -421,7 +421,7 @@
     if (k.type === 'router') {
       n.ifaces = [{ ip: '' }, { ip: '', wan: true }]; n.defGw = '';
       if (k.wifi) {
-        n.ssid = 'SNT'; n.wifiPwd = '1234';
+        n.ssid = 'wifi'; n.wifiPwd = '1234';
         // Le réseau local du routeur Wi-Fi est un petit switch intégré (caché) relié à son interface 1
         var s = { id: 'N' + (++seq), kind: 'switch', type: 'switch', label: 'Commutateur Wi-Fi', x: x, y: y, hidden: true };
         NODES.push(s);
@@ -1395,7 +1395,7 @@
       var wcl = document.createElement('label'); wcl.htmlFor = wcb.id; wcl.textContent = 'Connexion sans fil (Wi-Fi)';
       wwrap.appendChild(wcb); wwrap.appendChild(wcl); propsEl.appendChild(wwrap);
       if (f0.wifi) {
-        field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); });
+        field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); var st = wifiState(n); setStatus(st && !st.ok ? st.msg : 'Nom du réseau enregistré.'); draw(); refresh(); });
         field(propsEl, 'Mot de passe Wi-Fi', f0.pwd, function (inp) { f0.pwd = inp.value; setStatus('Mot de passe enregistré.'); draw(); refresh(); });
         var w0 = wifiOf(n);
         var st = document.createElement('p'); st.className = 'help';
