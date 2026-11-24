@@ -1,2 +1,2 @@
 // Numéro du commit de cette version (mis à jour à chaque commit)
-window.SIM_BUILD = 'ba61306';
+window.SIM_BUILD = '7a2127a';
