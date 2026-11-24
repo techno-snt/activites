@@ -268,7 +268,8 @@
     h.ifaces[0].ip = addr;
     h.ifaces[0].mask = m;
     h.gw = srv.dhcpGw || '';
-    h.dns = srv.dhcpDns || '';
+    // La box transmet le DNS fourni par l'opérateur quand aucun DNS n'est saisi à part
+    h.dns = srv.dhcpDns || (srv.kind === 'box' ? srv.wanDns : '') || '';
     h.dhcp = true;
     return { ok: true, msg: 'Adresse ' + addr + ' attribuée par ' + srv.label + '.' };
   }
@@ -1325,6 +1326,7 @@
       field(propsEl, 'Côté opérateur : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
       field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+      if (n.kind === 'box') field(propsEl, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), 'DNS fourni par l\'opérateur. La box le transmet à ses appareils par DHCP.');
     } else if (n.type === 'router') {
       var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Sections de configuration');
       var TABS = [['iface', 'Interfaces'], ['conn', 'Connexions'], ['route', 'Routes']];
@@ -1388,6 +1390,7 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); ip.appendChild(bar);
       field(ip, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+      if (n.kind === 'box') field(ip, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), 'DNS fourni par l\'opérateur. La box le transmet à ses appareils par DHCP.');
       var fwWrap = document.createElement('div'); fwWrap.className = 'field check';
       var fwCb = document.createElement('input'); fwCb.type = 'checkbox'; fwCb.id = 'f' + (++fid); fwCb.checked = n.forward !== false;
       fwCb.addEventListener('change', function () { n.forward = fwCb.checked; setStatus(fwCb.checked ? 'Routage des paquets activé.' : 'Routage des paquets désactivé : les paquets ne traversent plus ce routeur.'); });
