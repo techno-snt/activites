@@ -706,6 +706,13 @@
       g.addEventListener('pointerdown', function (e) { onDown(e, n, g); });
       g.addEventListener('pointermove', function (e) { onMove(e, g); });
       g.addEventListener('pointerup', function (e) { onUp(e, n); });
+      // Mode conception : double clic = outil « Déplacer et configurer » sur cet appareil
+      g.addEventListener('dblclick', function () {
+        if (isSim()) return;
+        setMode('select'); selected = n.id; selBlock = null;
+        setStatus('Configurez ' + n.label + ' à droite. Glissez l\'appareil pour le déplacer.');
+        refresh();
+      });
       // En simulation, un clic sur un ordinateur ouvre son bureau dans la zone dédiée
       g.addEventListener('click', function () {
         if (isSim()) { openWin('desk', n.id); return; }
