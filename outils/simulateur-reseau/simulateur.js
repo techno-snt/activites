@@ -2313,10 +2313,10 @@
         LINKS = res.links; BLOCKS = [];
         selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
         NODES.forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });
-        setStatus('Sauvegarde Filius importée : ' + NODES.length + ' appareils, ' + LINKS.length + ' câbles.' + (res.warnings.length ? ' À noter : ' + res.warnings.join(' ') : ''));
+        setStatus('Sauvegarde importée : ' + NODES.length + ' appareils, ' + LINKS.length + ' câbles.' + (res.warnings.length ? ' À noter : ' + res.warnings.join(' ') : ''));
         refresh();
       }).catch(function (err) {
-        setStatus('Fichier Filius non reconnu : ' + err.message + '.');
+        setStatus('Fichier de sauvegarde non reconnu : ' + err.message + '.');
       });
     };
     reader.readAsArrayBuffer(file);

@@ -29,7 +29,7 @@
     for (var i = d.length - 22; i >= Math.max(0, d.length - 65558); i--) {
       if (u32(d, i) === 0x06054b50) { eocd = i; break; }
     }
-    if (eocd < 0) throw new Error('ce n\'est pas une sauvegarde Filius (.fls)');
+    if (eocd < 0) throw new Error('ce n\'est pas un fichier de sauvegarde (.fls) reconnu');
     var count = u16(d, eocd + 10), p = u32(d, eocd + 16), dec = new TextDecoder('utf-8');
     for (var k = 0; k < count; k++) {
       if (u32(d, p) !== 0x02014b50) break;
@@ -238,7 +238,7 @@
 
     if (ripRouters > 1) warnings.push('Routage automatique (RIP) non reproduit : saisissez les routes dans la table de routage.');
     var docs = doc.querySelectorAll('object[class="filius.gui.netzwerksicht.GUIDocuItem"]').length;
-    if (docs) warnings.push(docs + ' document(s) de Filius ignoré(s).');
+    if (docs) warnings.push(docs + ' document(s) ignoré(s).');
     return { nodes: nodes, links: links, warnings: warnings };
   }
 
