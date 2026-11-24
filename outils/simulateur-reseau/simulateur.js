@@ -49,7 +49,7 @@
     if (!n) return [];
     var out = [], p;
     if (n.type === 'switch') { for (p = 0; p < SWITCH_PORTS; p++) out.push({ n: id, i: p }); return out; }
-    if (n.kind === 'wifi') return [{ n: n.lan, i: 0 }, { n: n.lan, i: 1 }, { n: n.lan, i: 2 }, { n: n.lan, i: 3 }, { n: id, i: 1 }];
+    if (isWifiRouter(n)) return [{ n: n.lan, i: 0 }, { n: n.lan, i: 1 }, { n: n.lan, i: 2 }, { n: n.lan, i: 3 }, { n: id, i: 1 }];
     if (n.type === 'router') return n.ifaces.map(function (f, k) { return { n: id, i: k }; });
     return [{ n: id, i: 0 }];
   }
@@ -58,11 +58,11 @@
   function syncWifi() {
     LINKS = LINKS.filter(function (l) { return !l.wireless; });
     NODES.forEach(function (w) {
-      if (w.kind !== 'wifi' || !w.lan) return;
+      if (!isWifiRouter(w) || !w.lan) return;
       NODES.forEach(function (h) {
         if (h.hidden || h.type === 'switch' || h.type === 'router') return;
         var f = h.ifaces && h.ifaces[0];
-        if (!f || !f.wifi || !f.ssid || f.ssid !== w.ssid) return;
+        if (!f || !f.wifi || !f.ssid || f.ssid !== w.ssid || f.pwd !== w.wifiPwd) return;
         if (linkAt(h.id, 0)) return;                     // déjà branchée par câble
         if (LINKS.some(function (l) { return l.wireless && l.a.n === h.id; })) return;
         // Ports 7 (interne) et 0 à 3 (câbles) exclus : les appareils sans fil prennent les ports libres à partir du 7e
@@ -77,6 +77,26 @@
     var l = LINKS.find(function (x) { return x.wireless && x.a.n === h.id; });
     if (!l) return null;
     return NODES.find(function (r) { return r.lan === l.b.n; }) || null;
+  }
+  // État Wi-Fi d'un appareil sans fil : routeur trouvé, réseau absent ou mot de passe incorrect
+  function wifiState(h) {
+    var f = h.ifaces && h.ifaces[0];
+    if (!f || !f.wifi) return null;
+    if (!f.ssid) return { ok: false, msg: 'Saisissez le nom du réseau (SSID).' };
+    var r = NODES.find(function (w) { return isWifiRouter(w) && w.ssid === f.ssid; });
+    if (!r) return { ok: false, msg: 'Réseau non trouvé : aucun routeur Wi-Fi ne diffuse « ' + f.ssid + ' ».' };
+    if (r.wifiPwd !== f.pwd) return { ok: false, msg: 'Mot de passe incorrect pour le réseau « ' + f.ssid + ' ».' };
+    return { ok: true, router: r };
+  }
+  // Adresses IP utilisées par plusieurs appareils : { adresse: [libellés] }
+  function ipConflicts() {
+    var seen = {}, out = {};
+    NODES.forEach(function (n) {
+      if (n.hidden || !n.ifaces) return;
+      n.ifaces.forEach(function (f) { if (f.ip) (seen[f.ip] = seen[f.ip] || []).push(n.label); });
+    });
+    Object.keys(seen).forEach(function (ip) { if (seen[ip].length > 1) out[ip] = seen[ip]; });
+    return out;
   }
   function freeTarget(id) {
     var ts = targetsOf(id);
@@ -97,6 +117,15 @@
     var hops = [startId];
     for (var step = 0; step < 14; step++) {
       var node = N(cur);
+      if (step === 0) {
+        var cf = ipConflicts();
+        var bad = cf[srcIP] || cf[dstIP];
+        if (bad) return { ok: false, msg: 'Conflit d\'adresse IP : ' + (cf[srcIP] ? srcIP : dstIP) + ' est utilisée par ' + bad.join(' et ') + '.', hops: hops };
+        if (node.type !== 'router' && node.ifaces[0] && node.ifaces[0].wifi && !linkAt(cur, 0)) {
+          var ws = wifiState(node);
+          return { ok: false, msg: ws && !ws.ok ? ws.msg : 'Connexion Wi-Fi impossible : aucun port libre sur le routeur.', hops: hops };
+        }
+      }
       if (node.ifaces.some(function (f) { return f.ip === dst; })) {
         if (node.type === 'router' && node.nat && node.nat[pid]) { dst = node.nat[pid]; }
         else return { ok: true, hops: hops, src: src, dstNode: cur };
@@ -359,7 +388,16 @@
     switch: { label: 'Switch', type: 'switch' },
     router: { label: 'Routeur', type: 'router' },
     wifi: { label: 'Routeur Wi-Fi', type: 'router', wifi: true },
+    box: { label: 'Box internet', type: 'router', wifi: true, box: true },
+    server: { label: 'Serveur', type: 'pc' },
+    smartphone: { label: 'Smartphone', type: 'pc', sansFil: true },
+    tablet: { label: 'Tablette', type: 'pc', sansFil: true },
+    printer: { label: 'Imprimante', type: 'pc' },
+    tv: { label: 'Smart TV', type: 'pc', sansFil: true },
+    iot: { label: 'Objet connecté', type: 'pc', sansFil: true },
   };
+  // Routeur Wi-Fi ou Box : ils diffusent un réseau sans fil (SSID et mot de passe)
+  function isWifiRouter(n) { return n.kind === 'wifi' || n.kind === 'box'; }
 
   function el(tag, attrs, parent) {
     var e = document.createElementNS(NS, tag);
@@ -380,7 +418,7 @@
     if (k.type === 'router') {
       n.ifaces = [{ ip: '' }, { ip: '', wan: true }]; n.defGw = '';
       if (k.wifi) {
-        n.ssid = 'Wifi-SNT';
+        n.ssid = 'SNT'; n.wifiPwd = '1234';
         // Le réseau local du routeur Wi-Fi est un petit switch intégré (caché) relié à son interface 1
         var s = { id: 'N' + (++seq), kind: 'switch', type: 'switch', label: 'Commutateur Wi-Fi', x: x, y: y, hidden: true };
         NODES.push(s);
@@ -389,6 +427,7 @@
       }
     } else if (k.type !== 'switch') {
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
+      if (k.sansFil) n.ifaces[0].wifi = true;
       if (k.web) n.web = true;
       if (k.dnsSvc) { n.dnsSvc = true; n.records = {}; }
       if (k.dhcpSvc) { n.dhcpSvc = true; n.pool = { start: '', end: '' }; n.dhcpGw = ''; n.dhcpDns = ''; n.leases = {}; }
@@ -463,6 +502,34 @@
     } else if (k === 'dhcp') {
       el('rect', { x: -28, y: -22, width: 56, height: 44, rx: 6, class: 'body' }, g);
       el('path', { d: 'M-16 -10 H16 M-16 0 H16 M-16 10 H4', class: 'lines' }, g);
+    } else if (k === 'server') {
+      el('rect', { x: -22, y: -30, width: 44, height: 60, rx: 4, class: 'body' }, g);
+      [-20, -6, 8].forEach(function (y) {
+        el('rect', { x: -16, y: y, width: 32, height: 9, rx: 2, class: 'lines' }, g);
+        el('circle', { cx: 11, cy: y + 4.5, r: 1.8, class: 'dot' }, g);
+      });
+    } else if (k === 'smartphone') {
+      el('rect', { x: -15, y: -28, width: 30, height: 56, rx: 6, class: 'body' }, g);
+      el('rect', { x: -10, y: -22, width: 20, height: 40, rx: 1, class: 'lines' }, g);
+    } else if (k === 'tablet') {
+      el('rect', { x: -22, y: -28, width: 44, height: 56, rx: 6, class: 'body' }, g);
+      el('rect', { x: -17, y: -22, width: 34, height: 40, rx: 1, class: 'lines' }, g);
+    } else if (k === 'printer') {
+      el('rect', { x: -28, y: -6, width: 56, height: 26, rx: 4, class: 'body' }, g);
+      el('rect', { x: -18, y: -26, width: 36, height: 20, class: 'body' }, g);
+      el('circle', { cx: 20, cy: 6, r: 2.5, class: 'dot' }, g);
+    } else if (k === 'tv') {
+      el('rect', { x: -32, y: -22, width: 64, height: 38, rx: 4, class: 'body' }, g);
+      el('path', { d: 'M-10 22 L10 22 M0 16 V22', class: 'lines' }, g);
+    } else if (k === 'iot') {
+      el('circle', { cx: 0, cy: 0, r: 16, class: 'body' }, g);
+      el('path', { d: 'M-7 0 Q0 -7 7 0 M-12 -5 Q0 -17 12 -5', class: 'lines' }, g);
+      el('circle', { cx: 0, cy: 6, r: 2, class: 'dot' }, g);
+    } else if (k === 'box') {
+      el('rect', { x: -34, y: -8, width: 68, height: 26, rx: 5, class: 'body' }, g);
+      el('path', { d: 'M-20 -8 L-26 -26 M20 -8 L26 -26', class: 'lines' }, g);
+      el('circle', { cx: 0, cy: 5, r: 6, class: 'lines' }, g);
+      el('circle', { cx: -20, cy: 5, r: 2.5, class: 'dot' }, g);
     } else {
       [-18, -3, 12].forEach(function (y) {
         el('rect', { x: -24, y: y, width: 48, height: 15, rx: 4, class: 'body' }, g);
@@ -476,7 +543,7 @@
     var out = [];
     if (n.type === 'switch') {
       for (var p = 0; p < SWITCH_PORTS; p++) out.push({ x: -56 + p * 16, y: 38, t: String(p + 1) });
-    } else if (n.kind === 'wifi') {
+    } else if (isWifiRouter(n)) {
       [-48, -24, 0, 24].forEach(function (x, p) { out.push({ x: x, y: 40, t: String(p + 1) }); });
       out.push({ x: 48, y: 40, t: 'W' });
     } else if (n.type === 'router') {
@@ -559,6 +626,7 @@
   // Rôles d'un serveur, affichés sous son nom sur le plan
   function rolesOf(n) {
     var r = [];
+    if (isWifiRouter(n)) { r.push('SSID : ' + (n.ssid || '—')); r.push('Mot de passe : ' + (n.wifiPwd || '—')); }
     if (n.web) r.push(svcRunning(n, 'web') ? 'WEB' : 'WEB arrêté');
     if (n.dnsSvc) r.push(svcRunning(n, 'dns') ? 'DNS' : 'DNS arrêté');
     if (n.dhcpSvc) r.push(svcRunning(n, 'dhcp') ? 'DHCP' : 'DHCP arrêté');
@@ -588,9 +656,11 @@
 
   function drawNodes() {
     layerNodes.textContent = '';
+    var cf = ipConflicts();
     NODES.forEach(function (n) {
       if (n.hidden) return;
-      var cls = 'dev k-' + n.kind + (selected === n.id ? ' sel' : '') + (pending && pending.vis === n.id ? ' pend' : '');
+      var clash = !!(n.ifaces && n.ifaces.some(function (f) { return f.ip && cf[f.ip]; }));
+      var cls = 'dev k-' + n.kind + (selected === n.id ? ' sel' : '') + (pending && pending.vis === n.id ? ' pend' : '') + (clash ? ' conflict' : '');
       var g = el('g', { class: cls, transform: 'translate(' + n.x + ',' + n.y + ')', tabindex: '0', role: 'button', 'data-id': n.id, 'aria-label': n.label + ', ' + ipText(n) }, layerNodes);
       el('rect', { x: -80, y: -56, width: 160, height: 170, class: 'hit' }, g);
       var art = el('g', { filter: 'url(#shadow)', transform: 'scale(1.6)' }, g);
@@ -1090,6 +1160,7 @@
       setStatus('Enregistré.');
       draw();
       refreshHosts();
+      renderProps();
     };
   }
 
@@ -1204,15 +1275,21 @@
     propsEl.appendChild(title);
 
     field(propsEl, 'Nom', n.label, function (inp) { n.label = inp.value.trim() || n.label; inp.value = n.label; draw(); refreshHosts(); });
+    var clashCf = ipConflicts(), clash = '';
+    (n.ifaces || []).forEach(function (f) {
+      if (f.ip && clashCf[f.ip]) clash = 'L\'adresse ' + f.ip + ' est aussi utilisée par ' + clashCf[f.ip].filter(function (l) { return l !== n.label; }).join(', ') + '.';
+    });
+    if (clash) { var cp = document.createElement('p'); cp.className = 'help'; cp.textContent = 'Conflit d\'adresse IP : ' + clash; propsEl.appendChild(cp); }
 
     if (n.type === 'switch') {
       var s = document.createElement('p'); s.className = 'help';
       s.textContent = 'Un switch relie les machines d\'un même réseau. Il n\'a pas d\'adresse à configurer.';
       propsEl.appendChild(s);
-    } else if (n.kind === 'wifi') {
+    } else if (isWifiRouter(n)) {
       var wi = document.createElement('p'); wi.className = 'help';
       wi.textContent = 'Ports 1 à 4 : réseau local (sans fil simulé par des câbles). Port W : vers l\'opérateur.';
       propsEl.appendChild(wi);
+      field(propsEl, 'Mot de passe Wi-Fi', n.wifiPwd, function (inp) { n.wifiPwd = inp.value; setStatus('Mot de passe enregistré.'); draw(); refresh(); }, 'Les appareils sans fil doivent saisir ce même mot de passe.');
       field(propsEl, 'Nom du réseau Wi-Fi (SSID)', n.ssid, function (inp) { n.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); }, 'Les machines en « sans fil » qui saisissent ce même nom se connectent à ce routeur.');
       field(propsEl, 'Réseau local : adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }), 'Passerelle des appareils du réseau local.');
       field(propsEl, 'Réseau local : masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
@@ -1301,9 +1378,10 @@
       wwrap.appendChild(wcb); wwrap.appendChild(wcl); propsEl.appendChild(wwrap);
       if (f0.wifi) {
         field(propsEl, 'Nom du réseau Wi-Fi (SSID)', f0.ssid, function (inp) { f0.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); });
+        field(propsEl, 'Mot de passe Wi-Fi', f0.pwd, function (inp) { f0.pwd = inp.value; setStatus('Mot de passe enregistré.'); draw(); refresh(); });
         var w0 = wifiOf(n);
         var st = document.createElement('p'); st.className = 'help';
-        st.textContent = w0 ? 'Connecté au routeur Wi-Fi « ' + w0.label + ' ».' : 'Aucun routeur Wi-Fi ne porte ce nom : pas de connexion.';
+        st.textContent = w0 ? 'Connecté au routeur Wi-Fi « ' + w0.label + ' ».' : ((wifiState(n) || {}).msg || 'Pas de connexion.');
         propsEl.appendChild(st);
       }
       field(propsEl, 'Adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }));
@@ -1907,7 +1985,24 @@
     termOut.scrollTop = termOut.scrollHeight;
   }
 
-  function fly(ids, cls) {
+  // Pas-à-pas : en mode pas-à-pas, chaque segment parcouru par un paquet attend un clic (ou la flèche droite)
+  var stepMode = false, stepResolve = null;
+  function releaseStep() { if (stepResolve) { var r = stepResolve; stepResolve = null; r(); } }
+  function updateStepBar(text) {
+    var bar = $('stepBar');
+    bar.hidden = !(stepMode && isSim());
+    $('stepText').textContent = text || 'Lancez un ping ou une page : chaque segment du paquet attend votre clic.';
+  }
+  function setStepMode(on) {
+    stepMode = on;
+    $('btnStep').setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (!on) releaseStep();
+    updateStepBar();
+  }
+  function waitStep(text) {
+    return new Promise(function (res) { stepResolve = res; updateStepBar(text); });
+  }
+  function fly(ids, cls, what) {
     return new Promise(function (resolve) {
       if (ids.length < 2) { resolve(); return; }
       var dot = el('circle', { r: 7, class: 'packet ' + cls }, layerPk);
@@ -1916,14 +2011,18 @@
       (function nextSeg() {
         if (i >= ids.length - 1) { dot.remove(); resolve(); return; }
         var a = N(ids[i]), b = N(ids[i + 1]), s = 0;
-        (function tick() {
-          s++;
-          var t = s / steps;
-          dot.setAttribute('cx', a.x + (b.x - a.x) * t);
-          dot.setAttribute('cy', a.y + (b.y - a.y) * t);
-          if (s < steps) setTimeout(tick, animDelay);
-          else { i++; nextSeg(); }
-        })();
+        var go = function () {
+          (function tick() {
+            s++;
+            var t = s / steps;
+            dot.setAttribute('cx', a.x + (b.x - a.x) * t);
+            dot.setAttribute('cy', a.y + (b.y - a.y) * t);
+            if (s < steps) setTimeout(tick, animDelay);
+            else { i++; nextSeg(); }
+          })();
+        };
+        if (stepMode) waitStep(what + ' : ' + a.label + ' → ' + b.label + ' (' + (i + 1) + '/' + (ids.length - 1) + ')').then(function () { updateStepBar(); go(); });
+        else go();
       })();
     });
   }
@@ -1933,7 +2032,7 @@
   function setAnimSpeed(v) { animDelay = SPEED_DELAY[Math.max(0, Math.min(4, (+v || 3) - 1))]; }
   async function flyLegs(legs) {
     for (var k = 0; k < legs.length; k++) {
-      await fly(expand(legs[k]), k === 0 ? 'req' : 'rep');
+      await fly(expand(legs[k]), k === 0 ? 'req' : 'rep', k === 0 ? 'Requête' : 'Réponse');
     }
   }
 
@@ -1951,12 +2050,41 @@
     return segs * 0.5 + Math.random() * 0.7;
   }
   function pingTime(ms) { return ms < 1 ? '<1ms' : '=' + Math.round(ms) + 'ms'; }
-  async function cmdPing(h, target) {
-    var r = resolveCore(h.id, target);
-    await flyLegs(r.legs || []);
-    if (!r.ok) { printTo(h.id, 'Impossible de trouver l\'hôte ' + target + '. Vérifiez le nom et réessayez.'); return; }
-    var ip = r.ip;
-    printTo(h.id, 'Envoi d\'une requête \'Ping\'  ' + (target === ip ? ip : target + ' [' + ip + ']') + ' avec 32 octets de données :');
+  // Recherche inverse (ping -a) : nom enregistré pour une adresse, sur le serveur DNS
+  function ptrCore(hostId, ip) {
+    var h = N(hostId);
+    var dnsNode = h.dns && NODES.find(function (n) { return n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc; });
+    if (!dnsNode) return { ok: false, msg: 'Aucun serveur DNS joignable.', legs: [] };
+    var q = pingCore(hostId, h.dns, 'Requête DNS inverse : ' + ip);
+    if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable.', legs: q.legs };
+    if (!svcRunning(dnsNode, 'dns')) return { ok: false, msg: 'Le service DNS est arrêté.', legs: q.legs };
+    var name = Object.keys(dnsNode.records || {}).find(function (k) { return dnsNode.records[k] === ip; });
+    if (!name) return { ok: false, msg: 'Aucun nom pour cette adresse.', legs: q.legs };
+    return { ok: true, name: name, legs: q.legs };
+  }
+  // ping [-a] <adresse ou nom>, sortie comme sous Windows
+  async function cmdPing(h, rest) {
+    var reverse = false, target = rest || '';
+    var mA = /^-a\s+(\S+)/.exec(rest || '');
+    if (mA) { reverse = true; target = mA[1]; }
+    if (!target) { printTo(h.id, 'Utilisation : ping [-a] <adresse ou nom>'); return; }
+    var ip, header;
+    if (reverse) {
+      if (!ipOK(target)) { printTo(h.id, 'Adresse IP invalide : ' + target + '.'); return; }
+      var rv = ptrCore(h.id, target);
+      await flyLegs(rv.legs || []);
+      ip = target;
+      header = rv.ok ? 'Envoi d\'une requête \'ping\' sur ' + rv.name + ' [' + ip + '] avec 32 octets de données :'
+                     : 'Envoi d\'une requête \'Ping\'  ' + ip + ' avec 32 octets de données :';
+    } else {
+      var r = resolveCore(h.id, target);
+      await flyLegs(r.legs || []);
+      if (!r.ok) { printTo(h.id, 'Impossible de trouver l\'hôte ' + target + '. Vérifiez le nom et réessayez.'); return; }
+      ip = r.ip;
+      header = ip === target ? 'Envoi d\'une requête \'Ping\'  ' + ip + ' avec 32 octets de données :'
+                             : 'Envoi d\'une requête \'ping\' sur ' + target + ' [' + ip + '] avec 32 octets de données :';
+    }
+    printTo(h.id, header);
     printTo(h.id, '');
     var recus = 0, times = [];
     for (var k = 0; k < 4; k++) {
@@ -2109,9 +2237,11 @@
     var parts = line.trim().split(/\s+/);
     var cmd = (parts[0] || '').toLowerCase();
     var arg = parts[1] || '';
+    var rest = line.trim().slice((parts[0] || '').length).trim();
     if (!cmd) return;
     if (cmd === 'aide') {
       printTo(h.id, 'ping <adresse ou nom> : teste la connexion (4 paquets)');
+      printTo(h.id, 'ping -a <adresse IP> : retrouve le nom de la machine (serveur DNS)');
       printTo(h.id, 'traceroute <adresse ou nom> : liste les routeurs traversés');
       printTo(h.id, 'host <nom> : donne l\'adresse IP d\'un nom (serveur DNS)');
       printTo(h.id, 'route : affiche la table de routage');
@@ -2127,7 +2257,7 @@
       if (!arg) { printTo(h.id, 'Usage : ' + cmd + ' <adresse ou nom>'); return; }
       if (!h.ifaces[0].ip) { printTo(h.id, h.label + ' : pas d\'adresse IP configurée.'); return; }
       busy = true; cmdInput.disabled = true;
-      try { if (cmd === 'ping') await cmdPing(h, arg); else if (cmd === 'traceroute') await cmdTrace(h, arg); else await cmdHost(h, arg); }
+      try { if (cmd === 'ping') await cmdPing(h, rest); else if (cmd === 'traceroute') await cmdTrace(h, arg); else await cmdHost(h, arg); }
       finally { busy = false; cmdInput.disabled = false; cmdInput.focus(); }
     } else {
       printTo(h.id, 'Commande inconnue : ' + cmd + '. Tapez « aide ».');
@@ -2355,6 +2485,8 @@
     if (on) savedVB = { x: VB.x, y: VB.y, w: VB.w, h: VB.h };
     document.body.classList.toggle('sim', on);
     if (!on) WINS = [];
+    $('btnStep').hidden = !on;
+    if (!on) setStepMode(false);
     if (on) fitPlan(false); else if (savedVB) tweenVB(savedVB, 260);
     $('btnSim').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('btnConcept').setAttribute('aria-pressed', on ? 'false' : 'true');
@@ -2362,8 +2494,37 @@
     else setStatus('Mode conception : vous pouvez de nouveau modifier le plan.');
     refresh();
   }
+  $('btnStep').addEventListener('click', function () { setStepMode(!stepMode); });
+  $('stepNext').addEventListener('click', function () { releaseStep(); });
+  $('stepPlay').addEventListener('click', function () { setStepMode(false); });
+  document.addEventListener('keydown', function (e) {
+    if (!stepResolve || (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); releaseStep(); }
+  });
   $('btnConcept').addEventListener('click', function () { setSim(false); });
   $('btnSim').addEventListener('click', function () { setSim(true); });
+
+  // Familles de la palette : icône = celle du premier appareil du menu ; le menu s'ouvre à droite (survol, clic ou clavier)
+  function closeFlies() {
+    document.querySelectorAll('.pal-group.open').forEach(function (g) {
+      g.classList.remove('open');
+      g.querySelector('.pal-cat').setAttribute('aria-expanded', 'false');
+    });
+  }
+  document.querySelectorAll('.pal-group').forEach(function (g) {
+    var cat = g.querySelector('.pal-cat');
+    var src = g.querySelector('.pal-fly svg.ic');
+    if (src) { var ic = cat.querySelector('svg.ic'); ic.setAttribute('class', src.getAttribute('class')); ic.innerHTML = src.innerHTML; }
+    cat.addEventListener('click', function () {
+      var open = !g.classList.contains('open');
+      closeFlies();
+      g.classList.toggle('open', open);
+      cat.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    g.querySelectorAll('.pal-fly button').forEach(function (b) { b.addEventListener('click', closeFlies); });
+  });
+  document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.pal-group'))) closeFlies(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeFlies(); });
 
   /* ----- Glisser-déposer depuis la palette ----- */
   var wrap = svg.parentNode;

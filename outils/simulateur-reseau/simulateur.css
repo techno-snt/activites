@@ -56,13 +56,27 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 .sep { width: 1px; height: 26px; background: var(--line); margin: 0 6px; flex: none; }
 .spacer { flex: 1; }
 
-/* Palette d'appareils */
+/* Palette : une catégorie par famille ; ses appareils s'ouvrent à droite */
 .palette {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0;
-  background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0;
+  background: var(--surface); border-right: 1px solid var(--line); overflow: visible;
 }
+.pal-group { position: relative; width: 100%; display: flex; justify-content: center; }
+.pal-fly {
+  display: none; position: absolute; left: calc(100% + 4px); top: 0; z-index: 30;
+  flex-direction: column; gap: 2px; padding: 6px; min-width: 96px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 27, 61, .16);
+}
+/* Pont invisible entre la catégorie et le menu, pour ne pas le perdre en traversant */
+.pal-fly::before { content: ''; position: absolute; top: 0; bottom: 0; right: 100%; width: 14px; }
+.pal-group.open .pal-fly { display: flex; }
+@media (hover: hover) and (pointer: fine) {
+  .pal-group:hover .pal-fly, .pal-group:focus-within .pal-fly { display: flex; }
+}
+body.sim .pal-fly { display: none !important; }
 .palette button {
-  width: 76px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: 76px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   cursor: grab; color: var(--ink); font-family: var(--sans); font-size: 11.5px; font-weight: 700; line-height: 1.15; text-align: center;
   background: transparent; border: 1px solid transparent; border-radius: 12px;
 }
@@ -70,7 +84,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 .palette button[aria-pressed="true"] .ic { filter: brightness(0) invert(1); }
 .cap { pointer-events: none; }
 .palette button:active { cursor: grabbing; }
-.palette .ic { width: 44px; height: 44px; pointer-events: none; }
+.palette .ic { width: 36px; height: 36px; pointer-events: none; }
 .palette .ic .body { stroke-width: 2.5; }
 .palette .ic .lines { stroke: var(--ink); stroke-width: 2.5; }
 .palette .ic .dot { fill: var(--ink); }
@@ -183,6 +197,14 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
 .k-notebook .body { fill: #ccfbf1; stroke: #0f766e; }
 .k-switch .body { fill: #dcfce7; stroke: #15803d; }
 .k-router .body { fill: #ffedd5; stroke: #c2410c; }
+.k-box .body { fill: #fef9c3; stroke: #a16207; }
+.k-server .body { fill: #e0e7ff; stroke: #4338ca; }
+.k-smartphone .body, .k-tablet .body { fill: #f1f5f9; stroke: #334155; }
+.k-printer .body { fill: #f3e8ff; stroke: #7e22ce; }
+.k-tv .body { fill: #e2e8f0; stroke: #1e293b; }
+.k-iot .body { fill: #fce7f3; stroke: #be185d; }
+.dev.conflict .body { stroke: #dc2626; stroke-width: 3.5; }
+.dev.conflict.sel .body, .dev.conflict.pend .body { stroke: #dc2626; stroke-width: 3.5; }
 .k-web .body { fill: #ede9fe; stroke: #6b3fc0; }
 .k-wifi .body { fill: #e0e7ff; stroke: #1e3a8a; }
 .k-wifi .lines { stroke: #1e3a8a; }
@@ -500,3 +522,17 @@ button:not(:disabled):active { transform: scale(.97); }
 }
 .taskbar .task-item:hover { background: rgba(255, 255, 255, .24); }
 .taskbar .task-item:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
+
+/* Pas-à-pas */
+#btnStep[hidden], .stepbar[hidden] { display: none; }
+.stepbar {
+  display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; font-size: .85rem;
+}
+.statusbar > .stepbar { flex: 0 1 auto; }
+.stepbar > span { min-width: 0; color: var(--ink); }
+.stepbar button {
+  flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--blue);
+  border-radius: 8px; padding: 4px 10px; font: inherit; font-weight: 700; cursor: pointer;
+}
+.stepbar #stepNext { background: var(--blue); border-color: var(--blue); color: #fff; }
+

@@ -59,6 +59,7 @@
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14l4-4 M4 16a8 8 0 1116 0"/></svg>
       <input type="range" id="animSpeed" min="1" max="5" step="1" value="3">
     </label>
+    <button class="tb" id="btnStep" type="button" aria-pressed="false" hidden title="Pas-à-pas : chaque segment du paquet attend votre clic" aria-label="Pas-à-pas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l10 7-10 7z M18 5v14"/></svg></button>
     <span class="spacer" aria-hidden="true"></span>
     <button class="tb" id="btnTerm" type="button" aria-pressed="false" title="Afficher ou masquer le terminal" aria-label="Afficher ou masquer le terminal">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3z M7 9l3 3-3 3 M12 15h5"/></svg>
@@ -66,13 +67,50 @@
   </header>
 
   <aside class="palette" aria-label="Appareils et câbles">
-    <button type="button" data-mode="cable" aria-pressed="false" title="Câbler : cliquer un port, puis un port de l'autre appareil" aria-label="Câble"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Câble</span></button>
-    <button type="button" data-add="pc" draggable="true" title="Ordinateur (il peut aussi être serveur : web, DNS, DHCP sur son bureau)" aria-label="Ordinateur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Ordinateur</span></button>
-    <button type="button" data-add="notebook" draggable="true" title="Portable" aria-label="Portable"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Portable</span></button>
-    <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Switch</span></button>
-    <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur</span></button>
-    <button type="button" data-add="wifi" draggable="true" title="Routeur Wi-Fi" aria-label="Routeur Wi-Fi"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur Wi-Fi</span></button>
-    <button type="button" data-add="block" draggable="true" title="Bloc : regrouper des appareils (salle, réseau)" aria-label="Bloc"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Bloc</span></button>
+    <section class="pal-group" aria-label="Liaisons">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Liaisons"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Liaisons</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Liaisons">
+      <button type="button" data-mode="cable" aria-pressed="false" title="Câbler : cliquer un port, puis un port de l'autre appareil" aria-label="Câble"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Câble</span></button>
+      </div>
+    </section>
+    <section class="pal-group" aria-label="Terminaux">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Terminaux"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Terminaux</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Terminaux">
+      <button type="button" data-add="pc" draggable="true" title="Ordinateur (il peut aussi être serveur : web, DNS, DHCP sur son bureau)" aria-label="Ordinateur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Ordinateur</span></button>
+      <button type="button" data-add="notebook" draggable="true" title="Portable" aria-label="Portable"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Portable</span></button>
+      <button type="button" data-add="smartphone" draggable="true" title="Smartphone" aria-label="Smartphone"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Smartphone</span></button>
+      <button type="button" data-add="tablet" draggable="true" title="Tablette" aria-label="Tablette"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Tablette</span></button>
+      <button type="button" data-add="printer" draggable="true" title="Imprimante" aria-label="Imprimante"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Imprimante</span></button>
+      <button type="button" data-add="tv" draggable="true" title="Smart TV" aria-label="Smart TV"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Smart TV</span></button>
+      <button type="button" data-add="iot" draggable="true" title="Objet connecté" aria-label="Objet connecté"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Objet connecté</span></button>
+      </div>
+    </section>
+    <section class="pal-group" aria-label="Commutation">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Commutation"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Commutation</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Commutation">
+      <button type="button" data-add="switch" draggable="true" title="Switch" aria-label="Switch"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Switch</span></button>
+      </div>
+    </section>
+    <section class="pal-group" aria-label="Routage">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Routage"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routage</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Routage">
+      <button type="button" data-add="router" draggable="true" title="Routeur" aria-label="Routeur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur</span></button>
+      <button type="button" data-add="wifi" draggable="true" title="Routeur Wi-Fi" aria-label="Routeur Wi-Fi"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Routeur Wi-Fi</span></button>
+      <button type="button" data-add="box" draggable="true" title="Box internet" aria-label="Box internet"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Box internet</span></button>
+      </div>
+    </section>
+    <section class="pal-group" aria-label="Serveur">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Serveur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Serveur">
+      <button type="button" data-add="server" draggable="true" title="Serveur" aria-label="Serveur"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Serveur</span></button>
+      </div>
+    </section>
+    <section class="pal-group" aria-label="Blocs">
+      <button type="button" class="pal-cat" aria-haspopup="true" aria-expanded="false" aria-label="Blocs"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Blocs</span></button>
+      <div class="pal-fly" role="group" aria-label="Appareils : Blocs">
+      <button type="button" data-add="block" draggable="true" title="Bloc : regrouper des appareils (salle, réseau)" aria-label="Bloc"><svg class="ic" viewBox="-40 -40 80 80" aria-hidden="true"></svg><span class="cap">Bloc</span></button>
+      </div>
+    </section>
   </aside>
 
   <main class="stage">
@@ -121,6 +159,11 @@
 
   <footer class="statusbar">
     <p id="status" role="status" aria-live="polite"></p>
+    <div class="stepbar" id="stepBar" hidden role="group" aria-label="Pas-à-pas">
+      <span id="stepText"></span>
+      <button type="button" id="stepNext">Suivant</button>
+      <button type="button" id="stepPlay">Lecture continue</button>
+    </div>
   </footer>
 
 </div>
