@@ -558,6 +558,8 @@
     return out;
   }
 
+  // Interface en cours de saisie : son câble est mis en vert pour repérer l'appareil relié
+  var hiPort = null;
   function drawLinks() {
     layerLinks.textContent = '';
     LINKS.forEach(function (l) {
@@ -565,7 +567,8 @@
       if (!a || !b) return;
       if (a.lan === b.id || b.lan === a.id) return; // liaison interne d'un routeur Wi-Fi, invisible
       if (l.wireless) { el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'cable wifi' }, layerLinks); return; }
-      var line = el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'cable' }, layerLinks);
+      var hot = hiPort && ((l.a.n === hiPort.n && l.a.i === hiPort.i) || (l.b.n === hiPort.n && l.b.i === hiPort.i));
+      var line = el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: hot ? 'cable hi' : 'cable' }, layerLinks);
       line.addEventListener('click', function (e) {
         if (mode === 'delete' && !isSim()) { e.stopPropagation(); removeLink(l); }
       });
@@ -1279,6 +1282,7 @@
   // Onglet ouvert dans la configuration d'un routeur (conservé d'un clic à l'autre)
   var routerTab = 'iface';
   function renderProps() {
+    hiPort = null;
     propsEl.textContent = '';
     var bl = selBlock ? BLOCKS.find(function (b) { return b.id === selBlock; }) : null;
     if (bl) { renderBlockProps(bl); return; }
@@ -1350,6 +1354,11 @@
       var ip = panes.iface;
       n.ifaces.forEach(function (f, i) {
         var card = document.createElement('div'); card.className = 'iface-card';
+        var setHi = function (on) { var v = on ? { n: n.id, i: i } : null; if (JSON.stringify(v) !== JSON.stringify(hiPort)) { hiPort = v; drawLinks(); } };
+        card.addEventListener('focusin', function () { setHi(true); });
+        card.addEventListener('focusout', function (e) { if (!card.contains(e.relatedTarget)) setHi(false); });
+        card.addEventListener('mouseenter', function () { setHi(true); });
+        card.addEventListener('mouseleave', function () { if (!card.contains(document.activeElement)) setHi(false); });
         var title = document.createElement('p'); title.className = 'iface-title';
         var titleText = function () { return 'Interface ' + (i + 1) + (f.wan ? ' · vers l\'opérateur' : ''); };
         title.textContent = titleText();
