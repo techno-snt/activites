@@ -107,6 +107,7 @@
     if (!a || !b) return { ok: false, msg: 'Pas de port libre sur cet appareil.' };
     if (a.n === b.n) return { ok: false, msg: 'Impossible de relier un appareil à lui-même.' };
     if (linkAt(a.n, a.i) || linkAt(b.n, b.i)) return { ok: false, msg: 'Ce port est déjà branché.' };
+    if (wirelessNode(N(a.n)) || wirelessNode(N(b.n))) return { ok: false, msg: (wirelessNode(N(a.n)) ? N(a.n) : N(b.n)).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.' };
     LINKS.push({ a: { n: a.n, i: a.i }, b: { n: b.n, i: b.i } });
     return { ok: true };
   }
@@ -667,13 +668,15 @@
       el('rect', { x: -80, y: -56, width: 160, height: 170, class: 'hit' }, g);
       var art = el('g', { filter: 'url(#shadow)', transform: 'scale(1.6)' }, g);
       drawIcon(art, n);
+      // Étiquette placée sous le bas de l'icône (l'échelle 1.6 de l'icône est prise en compte)
+      var ib = art.getBBox(), ly = Math.max(70, Math.ceil((ib.y + ib.height) * 1.6 + 24));
       var connected = LINKS.some(function (l) { return l.a.n === n.id || l.b.n === n.id; });
       el('circle', { cx: 44, cy: -44, r: 6, class: connected ? 'led on' : 'led' }, g);
       var lab = el('g', {}, g);
-      var t1 = el('text', { x: 0, y: 66, class: 'nlab' }, lab); t1.textContent = n.label;
-      var t2 = el('text', { x: 0, y: 86, class: 'nip' }, lab); t2.textContent = ipText(n);
+      var t1 = el('text', { x: 0, y: ly, class: 'nlab' }, lab); t1.textContent = n.label;
+      var t2 = el('text', { x: 0, y: ly + 20, class: 'nip' }, lab); t2.textContent = ipText(n);
       var roles = rolesOf(n);
-      if (roles.length) { var t3 = el('text', { x: 0, y: 106, class: 'nroles' }, lab); t3.textContent = roles.join(' · '); }
+      if (roles.length) { var t3 = el('text', { x: 0, y: ly + 40, class: 'nroles' }, lab); t3.textContent = roles.join(' · '); }
       var bb = lab.getBBox();
       var pill = el('rect', { x: bb.x - 8, y: bb.y - 3, width: bb.width + 16, height: bb.height + 6, rx: 9, class: 'lab-bg' });
       lab.insertBefore(pill, t1);
@@ -1004,10 +1007,14 @@
     return -1;
   }
   // Relie deux appareils : idxA ou idxB est null pour prendre le premier port libre
+  // Un appareil sans fil se connecte au routeur Wi-Fi, il ne se câble pas
+  function wirelessNode(n) { return !!(n && n.ifaces && n.ifaces[0] && n.ifaces[0].wifi); }
+  function wirelessLink(l) { return wirelessNode(N(l.a.n)) || wirelessNode(N(l.b.n)); }
   function linkDevices(visA, idxA, visB, idxB) {
     var a = idxA === null ? freePortIdx(visA) : idxA;
     var b = idxB === null ? freePortIdx(visB) : idxB;
     var na = N(visA), nb = N(visB);
+    if (wirelessNode(na) || wirelessNode(nb)) { pending = null; setStatus((wirelessNode(na) ? na : nb).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.'); refresh(); return; }
     if (a < 0) { pending = null; setStatus('Plus de port libre sur ' + na.label + '.'); return; }
     if (b < 0) { pending = null; setStatus('Plus de port libre sur ' + nb.label + '.'); return; }
     var r = addLink(targetsOf(visA)[a], targetsOf(visB)[b]);
@@ -1019,6 +1026,7 @@
   function handlePort(visId, idx) {
     var t = targetsOf(visId)[idx];
     if (!t) return;
+    if (wirelessNode(N(visId))) { pending = null; setStatus(N(visId).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.'); refresh(); return; }
     if (pending && pending.idx === null) {
       if (pending.vis === visId) { pending = null; setStatus('Câblage annulé.'); }
       else linkDevices(pending.vis, null, visId, idx);
@@ -1039,6 +1047,7 @@
   function startCableDrag(visId, idx) {
     var t = targetsOf(visId)[idx];
     if (!t) return;
+    if (wirelessNode(N(visId))) { setStatus(N(visId).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.'); return; }
     if (linkAt(t.n, t.i)) { setStatus('Ce port est déjà branché. Choisissez-en un autre.'); return; }
     var dev = N(visId);
     var p = portSpots(dev)[idx];
@@ -2340,7 +2349,7 @@
       try {
         var data = JSON.parse(reader.result);
         if (!Array.isArray(data.nodes) || !Array.isArray(data.links)) throw new Error('format');
-        NODES = data.nodes; NODES.forEach(upgradeNode); LINKS = data.links.filter(function (l) { return !l.wireless; }); BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
+        NODES = data.nodes; NODES.forEach(upgradeNode); LINKS = data.links.filter(function (l) { return !l.wireless && !wirelessLink(l); }); BLOCKS = Array.isArray(data.blocks) ? data.blocks : [];
         selBlock = null; OUT = {}; selected = null; pending = null;
         // Les nouveaux identifiants ne doivent pas reprendre ceux du plan importé
         NODES.concat(BLOCKS).forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });

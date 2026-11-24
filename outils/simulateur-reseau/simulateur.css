@@ -72,7 +72,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-
 .pal-fly::before { content: ''; position: absolute; top: 0; bottom: 0; right: 100%; width: 14px; }
 .pal-group.open .pal-fly { display: flex; }
 @media (hover: hover) and (pointer: fine) {
-  .pal-group:hover .pal-fly, .pal-group:focus-within .pal-fly { display: flex; }
+  .pal-group:hover .pal-fly, .pal-group:has(:focus-visible) .pal-fly { display: flex; }
 }
 body.sim .pal-fly { display: none !important; }
 .palette button {
