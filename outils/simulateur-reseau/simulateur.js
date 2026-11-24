@@ -132,8 +132,12 @@
         if (!g) return { ok: false, msg: 'La passerelle ' + node.gw + ' ne répond pas : aucun routeur de mon réseau porte cette adresse.', hops: hops };
         hops.push(g.n); cur = g.n; continue;
       }
+      if (node.forward === false) return { ok: false, msg: 'Routage désactivé sur ' + node.label + '.', hops: hops };
       var gwIP = nextHopOf(node, dst);
-      if (!gwIP) return { ok: false, msg: 'Destination inaccessible.', hops: hops };
+      if (!gwIP) {
+        var back = node.ifaces.filter(function (f3) { return f3.ip && sameNet(f3.ip, maskOf(f3), src); })[0] || node.ifaces[0];
+        return { ok: false, msg: 'Destination inaccessible.', hops: hops, unreach: back.ip };
+      }
       var out = -1, nh = null;
       for (var o = 0; o < node.ifaces.length && !nh; o++) {
         if (!linkAt(cur, o)) continue;
@@ -162,8 +166,9 @@
     updateTrameApps(hostId);
   }
   // Une trame traverse les machines de son chemin : émission, transferts par les routeurs, réception
+  var TTL_INIT = 128; // TTL initial d'un ordinateur Windows (capture de ping réelle)
   function ttlOf(hops) {
-    return 64 - hops.filter(function (id, k) { var x = N(id); return k > 0 && x && x.type === 'router'; }).length;
+    return TTL_INIT - hops.filter(function (id, k) { var x = N(id); return k > 0 && x && x.type === 'router'; }).length;
   }
   function recordPath(hops, src, dst, info, sens) {
     hops.forEach(function (id, k) {
@@ -181,12 +186,12 @@
     var what = info || 'ICMP écho (ping)';
     recordPath(r1.hops, srcIP, dstIP, what, 'Requête');
     var legs = [r1.hops];
-    if (!r1.ok) return { ok: false, msg: r1.msg, legs: legs };
+    if (!r1.ok) return { ok: false, msg: r1.msg, legs: legs, unreach: r1.unreach };
     var r2 = route(r1.dstNode, dstIP, r1.src, pid);
     legs.push(r2.hops);
     recordPath(r2.hops, dstIP, srcIP, what, 'Réponse');
     if (!r2.ok) return { ok: false, msg: 'La requête arrive, mais la réponse ne revient pas : ' + r2.msg, legs: legs };
-    return { ok: true, msg: 'Réponse de ' + dstIP, legs: legs, dstNode: r1.dstNode };
+    return { ok: true, msg: 'Réponse de ' + dstIP, legs: legs, dstNode: r1.dstNode, ip: dstIP };
   }
 
   function resolveCore(hostId, name) {
@@ -745,11 +750,12 @@
     return best ? best.gw : (n.defGw || null);
   }
   function routingRows(n) {
-    var rows = [];
+    var rows = [{ dst: '127.0.0.0/8', via: 'directement connecté', iface: 'Boucle locale' }];
     n.ifaces.forEach(function (f, i) {
       if (!f.ip) return;
       var m = maskOf(f);
       rows.push({ dst: int2ip((ip2(f.ip) & ip2(m)) >>> 0) + '/' + prefixLen(m), via: 'directement connecté', iface: 'Interface ' + (i + 1) + (f.wan ? ' (WAN)' : '') });
+      rows.push({ dst: f.ip + '/32', via: 'directement connecté', iface: 'Interface ' + (i + 1) });
     });
     (n.routes || []).forEach(function (r) {
       var o = -1;
@@ -797,13 +803,7 @@
     wrap.appendChild(t); host.appendChild(wrap);
     function fill() {
       body.textContent = '';
-      var rows = routingRows(n);
-      if (!rows.length) {
-        var tr0 = body.insertRow(); var td0 = tr0.insertCell(); td0.colSpan = 3; td0.className = 'dns-empty';
-        td0.textContent = 'Configurez les interfaces pour voir les réseaux connus.';
-        return;
-      }
-      rows.forEach(function (r) {
+      routingRows(n).forEach(function (r) {
         var tr = body.insertRow();
         if (r.route) {
           var on = r.route === sel;
@@ -1277,6 +1277,11 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); ip.appendChild(bar);
       field(ip, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
+      var fwWrap = document.createElement('div'); fwWrap.className = 'field check';
+      var fwCb = document.createElement('input'); fwCb.type = 'checkbox'; fwCb.id = 'f' + (++fid); fwCb.checked = n.forward !== false;
+      fwCb.addEventListener('change', function () { n.forward = fwCb.checked; setStatus(fwCb.checked ? 'Routage des paquets activé.' : 'Routage des paquets désactivé : les paquets ne traversent plus ce routeur.'); });
+      var fwLab = document.createElement('label'); fwLab.htmlFor = fwCb.id; fwLab.textContent = 'Activer le routage des paquets';
+      fwWrap.appendChild(fwCb); fwWrap.appendChild(fwLab); ip.appendChild(fwWrap);
       renderConnections(n, panes.conn);
       renderRoutingTable(n, panes.route);
       showPane(panes[routerTab] ? routerTab : 'iface');
@@ -1939,25 +1944,42 @@
     return Math.max(1, Math.round(segs * 1.2 + 1 + Math.random() * 2));
   }
 
+  // Sortie du ping comme sous Windows (capture d'un ordinateur réel)
+  function pingLatency(legs) {
+    var segs = 0;
+    legs.forEach(function (leg) { segs += expand(leg).length - 1; });
+    return segs * 0.5 + Math.random() * 0.7;
+  }
+  function pingTime(ms) { return ms < 1 ? '<1ms' : '=' + Math.round(ms) + 'ms'; }
   async function cmdPing(h, target) {
     var r = resolveCore(h.id, target);
     await flyLegs(r.legs || []);
-    if (!r.ok) { printTo(h.id, r.msg); return; }
-    printTo(h.id, 'Ping ' + target + (target === r.ip ? '' : ' [' + r.ip + ']') + ' : 4 paquets.');
-    var ok = 0, times = [];
+    if (!r.ok) { printTo(h.id, 'Impossible de trouver l\'hôte ' + target + '. Vérifiez le nom et réessayez.'); return; }
+    var ip = r.ip;
+    printTo(h.id, 'Envoi d\'une requête \'Ping\'  ' + (target === ip ? ip : target + ' [' + ip + ']') + ' avec 32 octets de données :');
+    printTo(h.id, '');
+    var recus = 0, times = [];
     for (var k = 0; k < 4; k++) {
-      var p = pingCore(h.id, r.ip);
+      var p = pingCore(h.id, ip);
       await flyLegs(p.legs);
       if (p.ok) {
-        ok++;
-        var ms = latency(p.legs);
-        times.push(ms);
-        printTo(h.id, p.msg + ' : temps=' + ms + ' ms TTL=' + ttlOf(p.legs[1] || p.legs[0]) + ' (paquet ' + (k + 1) + ')');
+        recus++;
+        var ms = pingLatency(p.legs);
+        times.push(ms < 1 ? 0 : Math.round(ms));
+        printTo(h.id, 'Réponse de ' + ip + ' : octets=32 temps' + pingTime(ms) + ' TTL=' + ttlOf(p.legs[1] || p.legs[0]));
+      } else {
+        printTo(h.id, 'Délai d\'attente de la demande dépassé.');
       }
-      else printTo(h.id, 'Échec (paquet ' + (k + 1) + ') : ' + p.msg);
     }
-    var avg = times.length ? Math.round(times.reduce(function (a, b) { return a + b; }, 0) / times.length) : 0;
-    printTo(h.id, 'Statistiques : 4 envoyés, ' + ok + ' reçus, ' + (4 - ok) + ' perdus' + (ok ? ', temps moyen ' + avg + ' ms.' : '.'));
+    printTo(h.id, '');
+    printTo(h.id, 'Statistiques Ping pour ' + ip + ':');
+    printTo(h.id, '    Paquets : envoyés = 4, reçus = ' + recus + ', perdus = ' + (4 - recus) + ' (perte ' + Math.round((4 - recus) * 100 / 4) + '%),');
+    if (times.length) {
+      var mn = Math.min.apply(null, times), mx = Math.max.apply(null, times);
+      var avg = Math.round(times.reduce(function (a, b) { return a + b; }, 0) / times.length);
+      printTo(h.id, 'Durée approximative des boucles en millisecondes :');
+      printTo(h.id, '    Minimum = ' + mn + 'ms, Maximum = ' + mx + 'ms, Moyenne = ' + avg + 'ms');
+    }
   }
 
   // host <nom> : traduit un nom en adresse IP par le serveur DNS (la requête voyage sur le schéma)
@@ -2152,7 +2174,25 @@
     document.body.appendChild(a); a.click(); a.remove();
     setStatus('Plan exporté.');
   }
+  // Sauvegarde Filius (.fls) : appareils, câbles, logiciels, DNS et pages reprises ; le reste est signalé
+  function importFiliusPlan(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      FiliusImport.read(reader.result).then(function (res) {
+        NODES = res.nodes; NODES.forEach(upgradeNode);
+        LINKS = res.links; BLOCKS = [];
+        selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
+        NODES.forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) seq = Math.max(seq, +m[1]); });
+        setStatus('Sauvegarde Filius importée : ' + NODES.length + ' appareils, ' + LINKS.length + ' câbles.' + (res.warnings.length ? ' À noter : ' + res.warnings.join(' ') : ''));
+        refresh();
+      }).catch(function (err) {
+        setStatus('Fichier Filius non reconnu : ' + err.message + '.');
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  }
   function importPlan(file) {
+    if (/\.fls$/i.test(file.name)) { importFiliusPlan(file); return; }
     var reader = new FileReader();
     reader.onload = function () {
       try {
