@@ -179,6 +179,7 @@ body.term-open #btnTerm { background: var(--blue); color: #fff; }
   display: flex; align-items: center; padding: 0 14px; background: var(--surface);
   border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted);
 }
+.statusbar .build { margin-left: auto; padding-left: 12px; font-size: 10px; color: var(--muted); opacity: .7; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .statusbar p { margin: 0; max-width: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Avertissement sur petit écran (placé en fin de fichier pour l'emporter sur .app-shell) */

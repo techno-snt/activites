@@ -164,10 +164,13 @@
       <button type="button" id="stepNext">Suivant</button>
       <button type="button" id="stepPlay">Lecture continue</button>
     </div>
+    <span class="build" id="buildId" title="Numéro du commit de cette version"></span>
   </footer>
 
 </div>
 
+<script src="build.js"></script>
+<script>document.getElementById('buildId').textContent = window.SIM_BUILD || '';</script>
 <script src="filius.js"></script>
 <script src="simulateur.js"></script>
 </body>
