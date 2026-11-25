@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Fiche élève — Simulation de réseau (simulateur)</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  body { font-family: system-ui, "Segoe UI", Roboto, sans-serif; font-size: 10pt; color:#111; margin:0; }
+  h1 { font-size: 14pt; margin: 0 0 2mm; }
+  h2 { font-size: 11pt; margin: 4mm 0 1.5mm; border-bottom: 1px solid #999; padding-bottom: 1mm; }
+  .meta { display:flex; gap:6mm; font-size:9.5pt; margin-bottom:2mm; }
+  .box { border:1px solid #777; height: 8mm; margin: 1.5mm 0; }
+  .box.tall { height: 16mm; }
+  table { width:100%; border-collapse: collapse; font-size: 9.5pt; }
+  td, th { border:1px solid #777; padding: 1.5mm 1.5mm; vertical-align: middle; text-align:left; }
+  .q { margin: 2mm 0 0; }
+  .page-break { page-break-before: always; }
+  .small { font-size: 8.5pt; color:#444; }
+  .schema { width:80%; height:auto; display:block; margin:0 auto; border:1px solid #bbb; }
+  .nlab { font-size:12px; fill:#111; text-anchor:middle; }
+  .nip { font-size:11px; fill:#444; text-anchor:middle; }
+  .trace p { margin: 3mm 0 0; }
+  .etape { display:inline-block; font-size:8.5pt; font-weight:700; color:#1f4e8c; border:1px solid #1f4e8c; border-radius:3px; padding:0 1.5mm; margin-right:1mm; white-space:nowrap; }
+  .trace p::after { content:""; display:block; border-bottom:1px dotted #777; margin-top:4mm; }
+  .sim-note { border-left:3px solid #1f4e8c; padding:2mm 3mm; margin:2mm 0; font-size:9pt; }
+</style>
+</head>
+<body>
+<h1>Simulation de réseau : adresse IP, passerelle, DNS</h1>
+<div class="meta"><span>Nom : ____________________</span><span>Classe : ________</span></div>
+<p class="small">Le schéma est simplifié. Les réglages et les pings se font dans la page de séance « Simulation de réseau — étapes guidées ». Répondez avec vos mots, en quelques lignes.</p>
+
+<h2>Schéma du réseau</h2>
+<svg viewBox="0 0 880 420" xmlns="http://www.w3.org/2000/svg" class="schema"><line x1="90" y1="110" x2="230" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="90" y1="300" x2="230" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="230" y1="205" x2="370" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="370" y1="205" x2="510" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="650" y1="205" x2="510" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="510" y1="80" x2="510" y2="205" stroke="#4b5563" stroke-width="2.5"></line><line x1="650" y1="205" x2="790" y2="205" stroke="#4b5563" stroke-width="2.5"></line><g transform="translate(90,110)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-26" y="-22" width="52" height="34" rx="3" fill="#fff" stroke="#243041" stroke-width="2"></rect><rect x="-6" y="12" width="12" height="6" fill="#243041"></rect><rect x="-14" y="17" width="28" height="3" fill="#243041"></rect><text x="0" y="44" class="nlab">Ordinateur</text><text x="0" y="58" class="nip">192.168.0.11</text></g><g transform="translate(90,300)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-24" y="-20" width="48" height="32" rx="2" fill="#fff" stroke="#243041" stroke-width="2"></rect><path d="M-30 14 L30 14 L26 20 L-26 20 Z" fill="#243041"></path><text x="0" y="44" class="nlab">Portable</text><text x="0" y="58" class="nip">192.168.0.10</text></g><g transform="translate(230,205)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-36" y="-13" width="72" height="26" rx="5" fill="#eef3fb" stroke="#243041" stroke-width="2"></rect><circle cx="-24" cy="0" r="2.5" fill="#243041"></circle><circle cx="-16" cy="0" r="2.5" fill="#243041"></circle><circle cx="-8" cy="0" r="2.5" fill="#243041"></circle><circle cx="0" cy="0" r="2.5" fill="#243041"></circle><circle cx="8" cy="0" r="2.5" fill="#243041"></circle><circle cx="16" cy="0" r="2.5" fill="#243041"></circle><circle cx="24" cy="0" r="2.5" fill="#243041"></circle><text x="0" y="44" class="nlab">Switch</text></g><g transform="translate(370,205)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><circle cx="0" cy="0" r="24" fill="#fff" stroke="#243041" stroke-width="2"></circle><text x="0" y="5" text-anchor="middle" font-size="13" fill="#243041">⇄</text><text x="0" y="44" class="nlab">Box</text><text x="0" y="58" class="nip">192.168.0.254</text></g><g transform="translate(510,205)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-36" y="-13" width="72" height="26" rx="5" fill="#eef3fb" stroke="#243041" stroke-width="2"></rect><circle cx="-24" cy="0" r="2.5" fill="#243041"></circle><circle cx="-16" cy="0" r="2.5" fill="#243041"></circle><circle cx="-8" cy="0" r="2.5" fill="#243041"></circle><circle cx="0" cy="0" r="2.5" fill="#243041"></circle><circle cx="8" cy="0" r="2.5" fill="#243041"></circle><circle cx="16" cy="0" r="2.5" fill="#243041"></circle><circle cx="24" cy="0" r="2.5" fill="#243041"></circle><text x="0" y="44" class="nlab">Switch du fournisseur</text></g><g transform="translate(650,205)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><circle cx="0" cy="0" r="24" fill="#fff" stroke="#243041" stroke-width="2"></circle><text x="0" y="5" text-anchor="middle" font-size="13" fill="#243041">⇄</text><text x="0" y="44" class="nlab">Routeur du fournisseur</text><text x="0" y="58" class="nip">192.168.140.254</text></g><g transform="translate(510,80)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-22" y="-28" width="44" height="56" rx="4" fill="#fff" stroke="#243041" stroke-width="2"></rect><line x1="-14" y1="-14" x2="14" y2="-14" stroke="#243041" stroke-width="2"></line><line x1="-14" y1="-2" x2="14" y2="-2" stroke="#243041" stroke-width="2"></line><line x1="-14" y1="10" x2="14" y2="10" stroke="#243041" stroke-width="2"></line><text x="0" y="44" class="nlab">Serveur DNS</text><text x="0" y="58" class="nip">192.168.140.1</text></g><g transform="translate(790,205)"><rect x="-50" y="-40" width="100" height="84" fill="transparent"></rect><rect x="-22" y="-28" width="44" height="56" rx="4" fill="#fff" stroke="#243041" stroke-width="2"></rect><line x1="-14" y1="-14" x2="14" y2="-14" stroke="#243041" stroke-width="2"></line><line x1="-14" y1="-2" x2="14" y2="-2" stroke="#243041" stroke-width="2"></line><line x1="-14" y1="10" x2="14" y2="10" stroke="#243041" stroke-width="2"></line><text x="0" y="44" class="nlab">Serveur Web</text><text x="0" y="58" class="nip">192.168.21.1</text></g></svg>
+
+<h2>Étape 1 : un réseau local</h2>
+<p class="q"><span class="etape">Question 1</span> Sur le Portable, vous tapez <code>ping 192.168.0.11</code>. Décrivez le trajet du paquet « demande », puis celui de la « réponse », en citant les appareils traversés.</p>
+<div class="box tall"></div>
+<p class="q"><span class="etape">Question 2</span> Que signifie la ligne « Réponse de 192.168.0.11 » ? Pourquoi le ping envoie-t-il quatre paquets ?</p>
+<div class="box"></div>
+
+<h2>Étape 2 : sortir du réseau local</h2>
+<p class="q"><span class="etape">Question 3</span> Dans le tableau, quels pings réussissent ? Quels pings échouent depuis l'Ordinateur, et qu'est-ce qui lui manque pour les réussir ?</p>
+<div class="box tall"></div>
+<p class="q"><span class="etape">Question 4</span> Quand un ping échoue, la ligne de commande n'affiche pas le résultat tout de suite. Pourquoi, à votre avis ? Quel message apparaît ?</p>
+<div class="box"></div>
+
+<h2>Étape 3 : la passerelle</h2>
+<p class="q"><span class="etape">Question 5</span> Quelle est la passerelle du Portable ? Où l'avez-vous trouvée ?</p>
+<div class="box"></div>
+<p class="q"><span class="etape">Question 6</span> Pourquoi ne pas utiliser 192.168.140.254 comme passerelle de l'Ordinateur ?</p>
+<div class="box"></div>
+
+<h2>Étape 4 : le site et le serveur DNS</h2>
+<p class="q"><span class="etape">Question 7</span> Tapez <code>192.168.21.1</code> dans le navigateur du Portable : que se passe-t-il ? Puis tapez <code>www.monsite-snt.fr</code> avant de régler le DNS : quel message apparaît ?</p>
+<div class="box"></div>
+<p class="q"><span class="etape">Question 8</span> Quelle correspondance avez-vous ajoutée sur le serveur DNS ? Que faut-il faire après l'avoir ajoutée pour que le serveur réponde ?</p>
+<div class="box tall"></div>
+<p class="q"><span class="etape">Question 9</span> Arrêtez le service DNS, puis tapez de nouveau le nom dans le navigateur. Quel message apparaît ? Que peut-on en conclure ?</p>
+<div class="box"></div>
+<p class="q"><span class="etape">Question 10</span> Quel réglage permet à l'Ordinateur et au Portable de trouver l'adresse à partir du nom ?</p>
+<div class="box"></div>
+
+<h2>Aide-mémoire du simulateur</h2>
+<div class="aide">
+  <ul>
+    <li><b>Mode conception / mode simulation</b> : le bouton « ▶ Mode simulation » est au-dessus du plan. En simulation, le plan est verrouillé et le panneau Configuration n'apparaît plus.</li>
+    <li><b>Régler une machine</b> : en mode conception, cliquez sur l'appareil, puis réglez son adresse, sa passerelle et son DNS dans le panneau <b>Configuration</b>.</li>
+    <li><b>Ouvrir le bureau d'une machine</b> : cliquez sur l'appareil dans le plan. Le bureau propose <b>Installation des logiciels</b>, la <b>Ligne de commande</b> et, une fois installé, le <b>Navigateur web</b>.</li>
+    <li><b>Serveur DNS</b> : son bureau contient l'application <b>Serveur DNS</b>. Dans <b>Adresse (A)</b>, saisissez un nom et son adresse IP, puis cliquez sur <b>Ajouter</b>. Le bouton <b>Démarrer le service</b> est dans la même fenêtre : un service arrêté ne répond à aucune machine.</li>
+    <li><b>Vitesse des paquets</b> : le curseur au-dessus du plan ralentit ou accélère les paquets.</li>
+  </ul>
+</div>
+
+<h2>Bilan</h2>
+<div class="trace">
+  <p>Une adresse IP sert à :</p>
+  <p>La passerelle sert à :</p>
+  <p>Le serveur DNS sert à :</p>
+  <p>Pour joindre un site d'un autre réseau, il faut :</p>
+</div>
+
+</body>
+</html>
