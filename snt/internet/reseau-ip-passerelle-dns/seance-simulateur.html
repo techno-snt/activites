@@ -59,7 +59,8 @@
   body.bilan .steps-card { height:auto; overflow:visible; font-size:1rem; }
   body.bilan .recap { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
   body.bilan .recap li { padding:16px 18px; font-size:1.02rem; }
-  table.m label { display:block; margin:3px 0; white-space:nowrap; }
+  table.m td.c, table.m th.c { text-align:center; width:64px; }
+  table.m input[type=radio] { width:18px; height:18px; margin:0; cursor:pointer; }
   .bilan .bt { font-size:1.4rem; color:var(--acc); margin:0 0 14px; }
   .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:18px; }
   .fn { border:2px solid var(--acc); border-radius:10px; padding:10px 14px; background:#eef4ff; text-align:center; min-width:140px; }
@@ -146,11 +147,10 @@ const STEPS = [
   { t:'Sortir du réseau local',
     html:`<p>Restez en <b>mode simulation</b>. Lancez chaque ping depuis la machine indiquée dans sa <b>Ligne de commande</b> (icône sur le bureau), puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets (curseur au-dessus du plan).</p>
     <table class="m">
-      <tr><th>Depuis</th><th>Vers</th><th>Résultat</th></tr>
-      ${ROWS.map(r => `<tr><td>${r.from}</td><td>${r.to}</td><td>
-        <label><input type="radio" name="r-${r.k}" onchange="setAns('${r.k}','ok')" ${answers[r.k] === 'ok' ? 'checked' : ''}> Réussi</label>
-        &nbsp; <label><input type="radio" name="r-${r.k}" onchange="setAns('${r.k}','ko')" ${answers[r.k] === 'ko' ? 'checked' : ''}> Échec</label>
-      </td></tr>`).join('')}
+      <tr><th>Depuis</th><th>Vers</th><th class="c">Réussi</th><th class="c">Échec</th></tr>
+      ${ROWS.map(r => `<tr><td>${r.from}</td><td>${r.to}</td>
+        <td class="c"><input type="radio" aria-label="Réussi" name="r-${r.k}" onchange="setAns('${r.k}','ok')" ${answers[r.k] === 'ok' ? 'checked' : ''}></td>
+        <td class="c"><input type="radio" aria-label="Échec" name="r-${r.k}" onchange="setAns('${r.k}','ko')" ${answers[r.k] === 'ko' ? 'checked' : ''}></td></tr>`).join('')}
     </table>`,
     checks: ROWS.map(r => ({
       l:`${r.from} → ${r.to} : ping lancé et réponse correctement indiquée`,
