@@ -1,0 +1,378 @@
+{
+  "version": 3,
+  "nodes": [
+    {
+      "id": "FAI",
+      "kind": "fai",
+      "type": "router",
+      "label": "Fournisseur d'accès internet",
+      "x": 620,
+      "y": 300,
+      "ifaces": [
+        {
+          "ip": "203.0.113.1",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "defGw": "",
+      "dnsSvc": true,
+      "records": {
+        "www.boulangerie-dupont.fr": "203.0.113.10",
+        "www.cinema-lumiere.fr": "203.0.113.10",
+        "www.mairie-exemple.fr": "203.0.113.10"
+      },
+      "software": [
+        "dns"
+      ],
+      "fixed": true,
+      "lan": "FAI_PC"
+    },
+    {
+      "id": "FAI_PC",
+      "kind": "switch",
+      "type": "switch",
+      "label": "Point de connexion",
+      "x": 620,
+      "y": 300,
+      "hidden": true
+    },
+    {
+      "id": "DC",
+      "kind": "datacenter",
+      "type": "pc",
+      "label": "Datacenter",
+      "x": 620,
+      "y": 500,
+      "ifaces": [
+        {
+          "ip": "203.0.113.10",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "gw": "203.0.113.1",
+      "dns": "",
+      "web": true,
+      "software": [
+        "web"
+      ],
+      "sites": [
+        {
+          "name": "www.boulangerie-dupont.fr",
+          "title": "Boulangerie Dupont",
+          "html": "<h1>Boulangerie Dupont</h1>\n<p>Pain, viennoiseries et gâteaux, faits chaque matin.</p>"
+        },
+        {
+          "name": "www.cinema-lumiere.fr",
+          "title": "Cinéma Lumière",
+          "html": "<h1>Cinéma Lumière</h1>\n<p>Les séances de la semaine et les tarifs.</p>"
+        },
+        {
+          "name": "www.mairie-exemple.fr",
+          "title": "Mairie",
+          "html": "<h1>Mairie</h1>\n<p>Horaires d'ouverture et démarches en ligne.</p>"
+        }
+      ],
+      "fixed": true
+    },
+    {
+      "id": "BOX1",
+      "kind": "box",
+      "type": "router",
+      "label": "Box internet",
+      "x": 360,
+      "y": 170,
+      "ifaces": [
+        {
+          "ip": "192.168.1.1",
+          "mask": "255.255.255.0"
+        },
+        {
+          "ip": "203.0.113.2",
+          "mask": "255.255.255.0",
+          "wan": true
+        }
+      ],
+      "defGw": "203.0.113.1",
+      "ssid": "wifi",
+      "wifiPwd": "1234",
+      "lan": "BOX1_LAN",
+      "dhcpSvc": true,
+      "pool": {
+        "start": "192.168.1.10",
+        "end": "192.168.1.100"
+      },
+      "dhcpGw": "192.168.1.1",
+      "dhcpDns": "",
+      "wanDns": "203.0.113.1",
+      "leases": {},
+      "software": [
+        "dhcp"
+      ]
+    },
+    {
+      "id": "BOX1_LAN",
+      "kind": "switch",
+      "type": "switch",
+      "label": "Commutateur Wi-Fi",
+      "x": 360,
+      "y": 170,
+      "hidden": true
+    },
+    {
+      "id": "BOX2",
+      "kind": "box",
+      "type": "router",
+      "label": "Box internet (2)",
+      "x": 880,
+      "y": 170,
+      "ifaces": [
+        {
+          "ip": "192.168.2.1",
+          "mask": "255.255.255.0"
+        },
+        {
+          "ip": "203.0.113.3",
+          "mask": "255.255.255.0",
+          "wan": true
+        }
+      ],
+      "defGw": "203.0.113.1",
+      "ssid": "wifi-voisin",
+      "wifiPwd": "1234",
+      "lan": "BOX2_LAN",
+      "dhcpSvc": true,
+      "pool": {
+        "start": "192.168.2.10",
+        "end": "192.168.2.100"
+      },
+      "dhcpGw": "192.168.2.1",
+      "dhcpDns": "",
+      "wanDns": "203.0.113.1",
+      "leases": {},
+      "software": [
+        "dhcp"
+      ]
+    },
+    {
+      "id": "BOX2_LAN",
+      "kind": "switch",
+      "type": "switch",
+      "label": "Commutateur Wi-Fi",
+      "x": 880,
+      "y": 170,
+      "hidden": true
+    },
+    {
+      "id": "PC1",
+      "kind": "pc",
+      "type": "pc",
+      "label": "Ordinateur",
+      "x": 330,
+      "y": 60,
+      "ifaces": [
+        {
+          "ip": "192.168.1.10",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "gw": "192.168.1.1",
+      "dns": "203.0.113.1",
+      "software": [
+        "cmd",
+        "nav"
+      ]
+    },
+    {
+      "id": "PC2",
+      "kind": "notebook",
+      "type": "pc",
+      "label": "Portable",
+      "x": 910,
+      "y": 60,
+      "ifaces": [
+        {
+          "ip": "192.168.2.10",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "gw": "192.168.2.1",
+      "dns": "203.0.113.1",
+      "software": [
+        "cmd",
+        "nav"
+      ]
+    },
+    {
+      "id": "PHONE",
+      "kind": "smartphone",
+      "type": "pc",
+      "label": "Smartphone",
+      "x": 200,
+      "y": 260,
+      "ifaces": [
+        {
+          "ip": "192.168.1.20",
+          "mask": "255.255.255.0",
+          "wifi": true,
+          "ssid": "wifi",
+          "pwd": "1234"
+        }
+      ],
+      "gw": "192.168.1.1",
+      "dns": "203.0.113.1",
+      "software": [
+        "nav"
+      ]
+    },
+    {
+      "id": "TV",
+      "kind": "tv",
+      "type": "pc",
+      "label": "Smart TV",
+      "x": 460,
+      "y": 260,
+      "ifaces": [
+        {
+          "ip": "192.168.1.30",
+          "mask": "255.255.255.0",
+          "wifi": true,
+          "ssid": "wifi",
+          "pwd": "1234"
+        }
+      ],
+      "gw": "192.168.1.1",
+      "dns": "203.0.113.1",
+      "software": []
+    },
+    {
+      "id": "TV2",
+      "kind": "tv",
+      "type": "pc",
+      "label": "Smart TV (salon 2)",
+      "x": 1000,
+      "y": 260,
+      "ifaces": [
+        {
+          "ip": "192.168.2.30",
+          "mask": "255.255.255.0",
+          "wifi": true,
+          "ssid": "wifi-voisin",
+          "pwd": "1234"
+        }
+      ],
+      "gw": "192.168.2.1",
+      "dns": "203.0.113.1",
+      "software": []
+    },
+    {
+      "id": "PRINT",
+      "kind": "printer",
+      "type": "pc",
+      "label": "Imprimante",
+      "x": 200,
+      "y": 60,
+      "ifaces": [
+        {
+          "ip": "192.168.1.40",
+          "mask": "255.255.255.0"
+        }
+      ],
+      "gw": "192.168.1.1",
+      "dns": "203.0.113.1",
+      "software": []
+    }
+  ],
+  "links": [
+    {
+      "a": {
+        "n": "FAI",
+        "i": 0
+      },
+      "b": {
+        "n": "FAI_PC",
+        "i": 7
+      }
+    },
+    {
+      "a": {
+        "n": "DC",
+        "i": 0
+      },
+      "b": {
+        "n": "FAI_PC",
+        "i": 0
+      }
+    },
+    {
+      "a": {
+        "n": "BOX1",
+        "i": 0
+      },
+      "b": {
+        "n": "BOX1_LAN",
+        "i": 7
+      }
+    },
+    {
+      "a": {
+        "n": "BOX1",
+        "i": 1
+      },
+      "b": {
+        "n": "FAI_PC",
+        "i": 1
+      }
+    },
+    {
+      "a": {
+        "n": "BOX2",
+        "i": 0
+      },
+      "b": {
+        "n": "BOX2_LAN",
+        "i": 7
+      }
+    },
+    {
+      "a": {
+        "n": "BOX2",
+        "i": 1
+      },
+      "b": {
+        "n": "FAI_PC",
+        "i": 2
+      }
+    },
+    {
+      "a": {
+        "n": "PC1",
+        "i": 0
+      },
+      "b": {
+        "n": "BOX1_LAN",
+        "i": 0
+      }
+    },
+    {
+      "a": {
+        "n": "PC2",
+        "i": 0
+      },
+      "b": {
+        "n": "BOX2_LAN",
+        "i": 0
+      }
+    },
+    {
+      "a": {
+        "n": "PRINT",
+        "i": 0
+      },
+      "b": {
+        "n": "BOX1_LAN",
+        "i": 1
+      }
+    }
+  ],
+  "blocks": []
+}

@@ -4,8 +4,16 @@
   'use strict';
 
   var NS = 'http://www.w3.org/2000/svg';
-  var SITE = 'www.monsite-snt.fr';
+  var SITE = 'Mon site';
   var SWITCH_PORTS = 8;
+  // Fournisseur d'accès et datacenter : adresses et sites fixes, rien n'est configurable
+  var FAI_IP = '203.0.113.1', DC_IP = '203.0.113.10';
+  var DC_SITES = [
+    { name: 'www.boulangerie-dupont.fr', title: 'Boulangerie Dupont', html: '<h1>Boulangerie Dupont</h1>\n<p>Pain, viennoiseries et gâteaux, faits chaque matin.</p>' },
+    { name: 'www.cinema-lumiere.fr', title: 'Cinéma Lumière', html: '<h1>Cinéma Lumière</h1>\n<p>Les séances de la semaine et les tarifs.</p>' },
+    { name: 'www.mairie-exemple.fr', title: 'Mairie', html: '<h1>Mairie</h1>\n<p>Horaires d\'ouverture et démarches en ligne.</p>' }
+  ];
+  function faiRecords() { var r = {}; DC_SITES.forEach(function (x) { r[x.name] = DC_IP; }); return r; }
 
   /* ===================== Moteur ===================== */
   var NODES = [], LINKS = [], pidSeq = 0, seq = 0;
@@ -48,6 +56,7 @@
     var n = N(id);
     if (!n) return [];
     var out = [], p;
+    if (n.kind === 'fai') { for (p = 0; p < SWITCH_PORTS - 1; p++) out.push({ n: n.lan, i: p }); return out; }
     if (n.type === 'switch') { for (p = 0; p < SWITCH_PORTS; p++) out.push({ n: id, i: p }); return out; }
     if (isWifiRouter(n)) return [{ n: n.lan, i: 0 }, { n: n.lan, i: 1 }, { n: n.lan, i: 2 }, { n: n.lan, i: 3 }, { n: id, i: 1 }];
     if (n.type === 'router') return n.ifaces.map(function (f, k) { return { n: id, i: k }; });
@@ -106,22 +115,21 @@
   function addLink(a, b) {
     if (!a || !b) return { ok: false, msg: 'Pas de port libre sur cet appareil.' };
     if (a.n === b.n) return { ok: false, msg: 'Impossible de relier un appareil à lui-même.' };
-    // Un opérateur se branche toujours sur le port W (vers l'opérateur) de la box
     // Une box a des ports LAN portés par son commutateur caché : on remonte à la box
     function boxOf(id) { return NODES.find(function (x) { return x.kind === 'box' && (x.id === id || x.lan === id); }); }
-    var opA = N(a.n) && N(a.n).kind === 'operator', opB = N(b.n) && N(b.n).kind === 'operator';
-    var boxA = boxOf(a.n), boxB = boxOf(b.n);
-    if ((opA && boxB) || (opB && boxA)) {
-      if (opA) b = { n: boxB.id, i: 1 }; else a = { n: boxA.id, i: 1 };
+    // Le fournisseur d'accès a son point de connexion sur un commutateur caché : on remonte à lui
+    function faiOf(id) { return NODES.find(function (x) { return x.kind === 'fai' && (x.id === id || x.lan === id); }); }
+    var faiA = faiOf(a.n), faiB = faiOf(b.n), boxA = boxOf(a.n), boxB = boxOf(b.n);
+    // Une box branchée au fournisseur d'accès se branche toujours sur son port W
+    if ((faiA && boxB) || (faiB && boxA)) {
+      if (faiA) b = { n: boxB.id, i: 1 }; else a = { n: boxA.id, i: 1 };
     }
     if (linkAt(a.n, a.i) || linkAt(b.n, b.i)) return { ok: false, msg: 'Ce port est déjà branché.' };
     if (wirelessNode(N(a.n)) || wirelessNode(N(b.n))) return { ok: false, msg: (wirelessNode(N(a.n)) ? N(a.n) : N(b.n)).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.' };
     LINKS.push({ a: { n: a.n, i: a.i }, b: { n: b.n, i: b.i } });
-    // Port W de la box branché sur l'opérateur : la box reprend le DNS de l'opérateur
-    var ends = [{ n: N(a.n), i: a.i }, { n: N(b.n), i: b.i }];
-    var op = ends.find(function (x) { return x.n && x.n.kind === 'operator'; });
-    var bx = ends.find(function (x) { return x.n && x.n.kind === 'box' && x.i === 1; });
-    if (op && bx && op.n.ifaces[0].ip) bx.n.wanDns = op.n.ifaces[0].ip;
+    // Box branchée au fournisseur d'accès : elle reprend son DNS (modifiable ensuite)
+    var faiE = faiA || faiB, boxE = faiA ? boxB : boxA;
+    if (faiE && boxE && faiE.ifaces[0].ip) boxE.wanDns = faiE.ifaces[0].ip;
     return { ok: true };
   }
 
@@ -242,7 +250,7 @@
     return NODES.find(function (n) { return n.dnsSvc && (n.ifaces || []).some(function (f) { return f.ip === ip; }); });
   }
   // Enregistrements DNS éditables sous forme « nom=adresse, nom=adresse »
-  var DNS_BOX_HELP = 'DNS fourni par l\'opérateur, repris automatiquement quand la box est branchée sur l\'opérateur. La box le transmet à ses appareils par DHCP. Modifiable.';
+  var DNS_BOX_HELP = 'DNS fourni par le fournisseur d\'accès, repris automatiquement quand la box est branchée sur le fournisseur d\'accès. La box le transmet à ses appareils par DHCP. Modifiable.';
   function dnsText(n) { return Object.keys(n.records || {}).map(function (k) { return k + '=' + n.records[k]; }).join(', '); }
   function setRecords(n, text) {
     var r = {};
@@ -424,8 +432,8 @@
     tv: { label: 'Smart TV', type: 'pc', sansFil: true },
     iot: { label: 'Enceinte connectée', type: 'pc', sansFil: true },
     // Nœuds virtuels : Internet n'est pas simulé en détail, ils représentent l'opérateur et les serveurs distants
-    operator: { label: 'Opérateur internet', type: 'router', virtual: true, operator: true },
-    datacenter: { label: 'Datacenter', type: 'pc', virtual: true },
+    fai: { label: 'Fournisseur d\'accès internet', type: 'router', virtual: true, fai: true },
+    datacenter: { label: 'Datacenter', type: 'pc', virtual: true, datacenter: true },
   };
   // Routeur Wi-Fi ou Box : ils diffusent un réseau sans fil (SSID et mot de passe)
   function isWifiRouter(n) { return n.kind === 'wifi' || n.kind === 'box'; }
@@ -451,10 +459,10 @@
     var n = { id: 'N' + (++seq), kind: kind, type: k.type, label: k.label, x: x, y: y };
     if (k.type === 'router') {
       n.ifaces = [{ ip: '' }, { ip: '', wan: true }]; n.defGw = '';
-      if (k.wifi) {
-        n.ssid = 'wifi'; n.wifiPwd = '1234';
+      if (k.wifi || k.fai) {
+        if (k.wifi) { n.ssid = 'wifi'; n.wifiPwd = '1234'; }
         // Le réseau local du routeur Wi-Fi est un petit switch intégré (caché) relié à son interface 1
-        var s = { id: 'N' + (++seq), kind: 'switch', type: 'switch', label: 'Commutateur Wi-Fi', x: x, y: y, hidden: true };
+        var s = { id: 'N' + (++seq), kind: 'switch', type: 'switch', label: k.fai ? 'Point de connexion' : 'Commutateur Wi-Fi', x: x, y: y, hidden: true };
         NODES.push(s);
         n.lan = s.id;
         LINKS.push({ a: { n: n.id, i: 0 }, b: { n: s.id, i: SWITCH_PORTS - 1 } });
@@ -465,10 +473,10 @@
         n.dhcpSvc = true; n.pool = { start: '192.168.1.10', end: '192.168.1.100' };
         n.dhcpGw = '192.168.1.1'; n.dhcpDns = ''; n.leases = {}; n.software = ['dhcp'];
       }
-      if (k.operator) {
-        // Opérateur : routeur de l'accès Internet, avec un service DNS qui connaît les sites publics
-        n.ifaces[0].ip = '203.0.113.1'; n.ifaces[0].mask = '255.255.255.0';
-        n.dnsSvc = true; n.records = {}; n.software = ['dns'];
+      if (k.fai) {
+        // Fournisseur d'accès : aucune configuration ; son point de connexion accepte plusieurs box
+        n.ifaces = [{ ip: FAI_IP, mask: '255.255.255.0' }];
+        n.dnsSvc = true; n.records = faiRecords(); n.software = ['dns']; n.fixed = true;
       }
     } else if (k.type !== 'switch') {
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
@@ -476,6 +484,11 @@
       if (k.web) n.web = true;
       if (k.dnsSvc) { n.dnsSvc = true; n.records = {}; }
       if (k.dhcpSvc) { n.dhcpSvc = true; n.pool = { start: '', end: '' }; n.dhcpGw = ''; n.dhcpDns = ''; n.leases = {}; }
+    }
+    if (k.datacenter) {
+      // Datacenter : aucune configuration ; il héberge les sites fixes et se branche au fournisseur d'accès
+      n.ifaces = [{ ip: DC_IP, mask: '255.255.255.0' }]; n.gw = FAI_IP; n.dns = '';
+      n.web = true; n.software = ['web']; n.sites = JSON.parse(JSON.stringify(DC_SITES)); n.fixed = true;
     }
     return n;
   }
@@ -570,7 +583,7 @@
       el('circle', { cx: 0, cy: 0, r: 16, class: 'body' }, g);
       el('path', { d: 'M-7 0 Q0 -7 7 0 M-12 -5 Q0 -17 12 -5', class: 'lines' }, g);
       el('circle', { cx: 0, cy: 6, r: 2, class: 'dot' }, g);
-    } else if (k === 'operator') {
+    } else if (k === 'fai') {
       el('path', { d: 'M-24 8 Q-38 8 -34 -4 Q-32 -18 -16 -14 Q-6 -30 10 -22 Q28 -24 28 -6 Q38 -2 34 8 Z', class: 'body' }, g);
       el('circle', { cx: 0, cy: -2, r: 5, class: 'lines' }, g);
     } else if (k === 'datacenter') {
@@ -1328,12 +1341,27 @@
 
   // Onglet ouvert dans la configuration d'un routeur (conservé d'un clic à l'autre)
   var routerTab = 'iface';
+  // Fournisseur d'accès et datacenter : rien à configurer, on indique seulement ce qu'ils font
+  function renderFixed(n) {
+    var h3 = document.createElement('h3'); h3.textContent = n.label; propsEl.appendChild(h3);
+    var txt = document.createElement('p'); txt.className = 'help';
+    txt.textContent = n.kind === 'fai'
+      ? 'Rien à configurer. Son point de connexion accepte plusieurs box ou routeurs. Son service DNS (' + FAI_IP + ') connaît les sites hébergés par le datacenter.'
+      : 'Rien à configurer. Adresse : ' + DC_IP + '. Il héberge les sites suivants :';
+    propsEl.appendChild(txt);
+    if (n.sites) {
+      var ul = document.createElement('ul');
+      n.sites.forEach(function (x) { var li = document.createElement('li'); li.textContent = x.name; ul.appendChild(li); });
+      propsEl.appendChild(ul);
+    }
+  }
   function renderProps() {
     hiPort = null;
     propsEl.textContent = '';
     var bl = selBlock ? BLOCKS.find(function (b) { return b.id === selBlock; }) : null;
     if (bl) { renderBlockProps(bl); return; }
     var n = N(selected);
+    if (n && n.fixed) { renderFixed(n); return; }
     if (!n || n.hidden) {
       var p = document.createElement('p'); p.className = 'help';
       p.textContent = 'Cliquez sur un appareil du plan pour le configurer.';
@@ -1357,16 +1385,16 @@
       propsEl.appendChild(s);
     } else if (isWifiRouter(n)) {
       var wi = document.createElement('p'); wi.className = 'help';
-      wi.textContent = 'Ports 1 à 4 : réseau local (sans fil simulé par des câbles). Port W : vers l\'opérateur.';
+      wi.textContent = 'Ports 1 à 4 : réseau local (sans fil simulé par des câbles). Port W : vers le fournisseur d\'accès.';
       propsEl.appendChild(wi);
       field(propsEl, 'Mot de passe Wi-Fi', n.wifiPwd, function (inp) { n.wifiPwd = inp.value; setStatus('Mot de passe enregistré.'); draw(); refresh(); }, 'Les appareils sans fil doivent saisir ce même mot de passe.');
       field(propsEl, 'Nom du réseau Wi-Fi (SSID)', n.ssid, function (inp) { n.ssid = inp.value.trim(); setStatus('Nom du réseau enregistré.'); draw(); refresh(); }, 'Les machines en « sans fil » qui saisissent ce même nom se connectent à ce routeur.');
       field(propsEl, 'Réseau local : adresse IP', n.ifaces[0].ip, ipChange(function (v) { n.ifaces[0].ip = v; }), 'Passerelle des appareils du réseau local.');
       field(propsEl, 'Réseau local : masque', maskOf(n.ifaces[0]), maskChange(function (v) { n.ifaces[0].mask = v; }));
-      field(propsEl, 'Côté opérateur : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
-      field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
+      field(propsEl, 'Côté fournisseur d\'accès : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
+      field(propsEl, 'Côté fournisseur d\'accès : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-      if (n.kind === 'box') field(propsEl, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
+      if (n.kind === 'box') field(propsEl, 'DNS du fournisseur d\'accès', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
     } else if (n.type === 'router') {
       var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Sections de configuration');
       var TABS = [['iface', 'Interfaces'], ['conn', 'Connexions'], ['route', 'Routes']];
@@ -1408,7 +1436,7 @@
         card.addEventListener('mouseenter', function () { setHi(true); });
         card.addEventListener('mouseleave', function () { if (!card.contains(document.activeElement)) setHi(false); });
         var title = document.createElement('p'); title.className = 'iface-title';
-        var titleText = function () { return 'Interface ' + (i + 1) + (f.wan ? ' · vers l\'opérateur' : ''); };
+        var titleText = function () { return 'Interface ' + (i + 1) + (f.wan ? ' · vers le fournisseur d\'accès' : ''); };
         title.textContent = titleText();
         card.appendChild(title);
         var pair = document.createElement('div'); pair.className = 'pair';
@@ -1418,7 +1446,7 @@
         var wrap = document.createElement('div'); wrap.className = 'field check';
         var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'f' + (++fid); cb.checked = !!f.wan;
         cb.addEventListener('change', function () { f.wan = cb.checked; title.textContent = titleText(); draw(); });
-        var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = 'Interface vers l\'opérateur (WAN)';
+        var cl = document.createElement('label'); cl.htmlFor = cb.id; cl.textContent = 'Interface vers le fournisseur d\'accès (WAN)';
         wrap.appendChild(cb); wrap.appendChild(cl); card.appendChild(wrap);
         ip.appendChild(card);
       });
@@ -1430,8 +1458,8 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); ip.appendChild(bar);
       field(ip, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-      if (n.kind === 'box') field(ip, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
-      if (n.dnsSvc) field(ip, 'Enregistrements DNS', dnsText(n), function (inp) { setRecords(n, inp.value); setStatus('Enregistrements DNS mis à jour.'); draw(); }, 'Les noms connus de ce serveur, séparés par des virgules : nom=adresse. Ex. www.monsite-snt.fr=203.0.113.10');
+      if (n.kind === 'box') field(ip, 'DNS du fournisseur d\'accès', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
+      if (n.dnsSvc) field(ip, 'Enregistrements DNS', dnsText(n), function (inp) { setRecords(n, inp.value); setStatus('Enregistrements DNS mis à jour.'); draw(); }, 'Les noms connus de ce serveur, séparés par des virgules : nom=adresse. Ex. www.boulangerie-dupont.fr=203.0.113.10');
       var fwWrap = document.createElement('div'); fwWrap.className = 'field check';
       var fwCb = document.createElement('input'); fwCb.type = 'checkbox'; fwCb.id = 'f' + (++fid); fwCb.checked = n.forward !== false;
       fwCb.addEventListener('change', function () { n.forward = fwCb.checked; setStatus(fwCb.checked ? 'Routage des paquets activé.' : 'Routage des paquets désactivé : les paquets ne traversent plus ce routeur.'); });
@@ -1817,7 +1845,7 @@
     var body = document.createElement('div'); body.className = 'dwin-body nav-body';
     var bar = document.createElement('form'); bar.className = 'nav-bar';
     var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.placeholder = 'www.monsite-snt.fr'; inp.value = w.url || ''; inp.setAttribute('aria-label', 'Adresse à ouvrir');
+    inp.placeholder = 'www.boulangerie-dupont.fr'; inp.value = w.url || ''; inp.setAttribute('aria-label', 'Adresse à ouvrir');
     inp.addEventListener('input', function () { w.url = inp.value; });
     var go = document.createElement('button'); go.type = 'submit'; go.title = 'Ouvrir cette adresse'; go.setAttribute('aria-label', 'Ouvrir');
     go.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>';
@@ -1827,7 +1855,7 @@
     var st = w.state;
     if (!st) {
       var hint = document.createElement('p'); hint.className = 'nav-hint';
-      hint.textContent = 'Saisissez une adresse, par exemple www.monsite-snt.fr. Le navigateur demande d\'abord l\'adresse IP au serveur DNS, puis envoie la requête au serveur web.';
+      hint.textContent = 'Saisissez une adresse, par exemple www.boulangerie-dupont.fr. Le navigateur demande d\'abord l\'adresse IP au serveur DNS, puis envoie la requête au serveur web.';
       view.appendChild(hint);
     } else if (st.page) {
       var page = document.createElement('div'); page.className = 'nav-page';
@@ -2312,7 +2340,7 @@
     var path = slash < 0 ? '/' : url.slice(slash);
     var tok = ++navSeq;
     w.tok = tok; w.url = text;
-    if (!name) return navFinish(w, tok, { status: 'Adresse vide.', error: 'Saisissez une adresse, par exemple www.monsite-snt.fr' });
+    if (!name) return navFinish(w, tok, { status: 'Adresse vide.', error: 'Saisissez une adresse, par exemple www.boulangerie-dupont.fr' });
     w.state = { status: 'Recherche de l\'adresse de ' + name + '…' };
     renderDesk();
     var r = resolveCore(h.id, name);
@@ -2327,6 +2355,13 @@
     if (srv && srv.web && !svcRunning(srv, 'web')) return navFinish(w, tok, { status: 'Connexion refusée', error: 'Le service web de ce serveur est arrêté.' });
     if (!(srv && srv.web && srv.ifaces.some(function (f) { return f.ip === r.ip; })))
       return navFinish(w, tok, { status: 'Connexion refusée', error: 'Ce serveur n\'a pas de serveur web installé.' });
+    if (srv.sites) {
+      // Datacenter : plusieurs sites sur la même adresse, choisis par leur nom
+      var site = srv.sites.filter(function (x) { return x.name === name; })[0];
+      if (!site) return navFinish(w, tok, { status: 'Site inconnu', error: 'Ce serveur n\'héberge pas le site « ' + name + ' ».' });
+      if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
+      return navFinish(w, tok, { status: '200 OK', page: { title: site.title, name: name, ip: r.ip, https: https, html: withImages(srv, site.html) } });
+    }
     if (path !== '/') return navFinish(w, tok, { status: '404 Page introuvable', error: 'Le site « ' + name + ' » n\'a pas de page « ' + path + ' ».' });
     navFinish(w, tok, { status: '200 OK', page: { title: srv.siteName || SITE, name: name, ip: r.ip, https: https, html: withImages(srv, srv.pageHtml || defaultPage(srv)) } });
   }
@@ -2451,9 +2486,9 @@
       { id: 'NB', kind: 'notebook', type: 'notebook', label: 'Portable', ifaces: [{ ip: '' }], gw: '192.168.0.254', dns: '', software: ['cmd'], x: 100, y: 300 },
       { id: 'SW1', kind: 'switch', type: 'switch', label: 'Switch', x: 250, y: 205 },
       { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 400, y: 205 },
-      { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch opérateur', x: 570, y: 205 },
-      { id: 'OP', kind: 'router', type: 'router', label: 'Routeur opérateur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
-      { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
+      { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch du fournisseur', x: 570, y: 205 },
+      { id: 'OP', kind: 'router', type: 'router', label: 'Routeur du fournisseur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
+      { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.boulangerie-dupont.fr': '192.168.21.1' }, x: 570, y: 80 },
       { id: 'WEB', kind: 'pc', type: 'pc', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
     ];
     LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
