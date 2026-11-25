@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Simulation de réseau — étapes guidées (simulateur)</title>
 <style>
-  :root { --fg:#1d2330; --muted:#5b6475; --line:#d7dce5; --bg:#f6f7f9; --ok:#1f7a3d; --acc:#1f4e8c; }
+  :root { --fg:#1d2330; --muted:#5b6475; --line:#d7dce5; --bg:#f6f7f9; --ok:#1f7a3d; --ko:#b3261e; --acc:#1f4e8c; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:system-ui,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:#fff; line-height:1.45; }
   header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
@@ -15,23 +15,26 @@
   .chip { padding:5px 10px; border-radius:999px; border:1px solid #aab2c0; background:#fff; color:var(--fg); font-size:.85rem; cursor:pointer; }
   .chip.cur { background:var(--acc); color:#fff; border-color:var(--acc); }
   .chip.ok::before { content:"✔ "; color:var(--ok); }
+  .chip.cur.ok::before { color:#fff; }
   button { padding:6px 10px; border:0; border-radius:5px; background:var(--acc); color:#fff; font:inherit; font-size:.9rem; cursor:pointer; }
   button:disabled { opacity:.45; cursor:default; }
   button.sec { background:#e7ebf2; color:var(--fg); }
-  main { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:12px; padding:12px; align-items:start; }
-  .sticky { position:sticky; top:100px; }
-  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; margin-bottom:12px; }
+  main { display:flex; flex-direction:column; gap:12px; padding:12px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; }
   .card h2 { font-size:.95rem; margin:0 0 6px; color:var(--acc); }
   iframe.sim { width:100%; height:640px; border:1px solid var(--line); border-radius:6px; background:#fbfcfd; }
   .legend { font-size:.82rem; color:var(--muted); margin-top:6px; }
   .plan li { margin:4px 0; }
-  .checks label { display:flex; gap:8px; align-items:flex-start; font-size:.95rem; margin:6px 0; cursor:pointer; }
+  .checks ul { list-style:none; padding:0; margin:8px 0 0; }
+  .checks li { display:flex; gap:8px; align-items:flex-start; font-size:.95rem; margin:6px 0; }
+  .st { flex:none; font-weight:700; width:1.2em; text-align:center; }
+  .st.ok { color:var(--ok); } .st.ko { color:var(--ko); } .st.wait { color:var(--muted); }
+  .simerr { color:var(--ko); font-size:.9rem; margin-top:6px; }
   table.m { width:100%; border-collapse:collapse; font-size:.9rem; margin-top:6px; }
   table.m th, table.m td { border:1px solid var(--line); padding:5px; text-align:left; vertical-align:middle; }
   .recap { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; list-style:none; padding:0; }
   .recap li { border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:6px; padding:10px 12px; background:#fbfcfe; }
   .recap li b { display:block; color:var(--acc); margin-bottom:3px; }
-  @media (max-width:900px) { main { grid-template-columns:1fr; } .sticky { position:static; } iframe.sim { height:560px; } }
 </style>
 </head>
 <body>
@@ -45,51 +48,90 @@
 </header>
 
 <main>
-  <div class="sticky">
-    <div class="card">
-      <h2>Simulateur réseau</h2>
-      <iframe class="sim" src="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" title="Simulateur réseau"></iframe>
-      <div class="legend">Si le cadre reste vide, <a href="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" target="_blank" rel="noopener">ouvrir le simulateur dans un nouvel onglet</a>.</div>
-    </div>
+  <div class="card">
+    <div id="stepNo" style="font-size:.85rem;color:var(--muted)"></div>
+    <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 6px"></h2>
+    <div id="stepBody"></div>
   </div>
 
-  <div>
-    <div class="card">
-      <div id="stepNo" style="font-size:.85rem;color:var(--muted)"></div>
-      <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 6px"></h2>
-      <div id="stepBody"></div>
-    </div>
+  <div class="card">
+    <h2>Simulateur réseau</h2>
+    <iframe class="sim" id="sim" src="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" title="Simulateur réseau"></iframe>
+    <div class="legend">Si le cadre reste vide, <a href="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" target="_blank" rel="noopener">ouvrir le simulateur dans un nouvel onglet</a> (dans ce cas la vérification automatique ne fonctionne pas).</div>
   </div>
 </main>
 
 <script>
 const SITE = 'www.monsite-snt.fr';
 
+// Tableau des pings (étape 2) : la bonne réponse n'est pas dans la page, elle est lue dans le simulateur
+const ROWS = [
+  { k:'a', src:'NB', dst:'192.168.0.11',  from:'Portable',   to:'Ordinateur 192.168.0.11' },
+  { k:'b', src:'PC', dst:'192.168.0.10',  from:'Ordinateur', to:'Portable 192.168.0.10' },
+  { k:'c', src:'PC', dst:'192.168.140.1', from:'Ordinateur', to:'192.168.140.1' },
+  { k:'d', src:'PC', dst:'192.168.21.1',  from:'Ordinateur', to:'192.168.21.1' },
+  { k:'e', src:'NB', dst:'192.168.140.1', from:'Portable',   to:'192.168.140.1' },
+  { k:'f', src:'NB', dst:'192.168.21.1',  from:'Portable',   to:'192.168.21.1' }
+];
+const answers = {};    // réponses de l'élève au tableau
+const selfDone = {};   // cases à cocher non vérifiables par la page
+
+// Nombre de paquets reçus lors du dernier ping vers dst lancé depuis host (null si jamais lancé)
+function lastStats(out, host, dst) {
+  const L = out[host] || [];
+  let idx = -1;
+  for (let i = 0; i < L.length; i++) if (L[i].indexOf('Statistiques Ping pour ' + dst + ':') === 0) idx = i;
+  if (idx < 0) return null;
+  for (let j = idx + 1; j < L.length && j <= idx + 4; j++) {
+    const m = /reçus = (\d+)/.exec(L[j]);
+    if (m) return +m[1];
+  }
+  return null;
+}
+// État du simulateur (même site : lecture possible), ou null si le cadre ne répond pas
+function sim() {
+  try {
+    const f = document.getElementById('sim');
+    return f.contentWindow && f.contentWindow.simState ? f.contentWindow.simState() : null;
+  } catch (e) { return null; }
+}
+
 const STEPS = [
   { t:'Un réseau local',
-    html:`<p>Démarrez l'<b>Ordinateur</b> et le <b>Portable</b> dans le simulateur. Dans la configuration IP de chaque machine, réglez l'adresse : Ordinateur <b>192.168.0.11</b>, Portable <b>192.168.0.10</b> (masque 255.255.255.0).</p>
+    html:`<p>Dans le simulateur, réglez l'adresse de chaque machine dans sa <b>configuration IP</b> : Ordinateur <b>192.168.0.11</b>, Portable <b>192.168.0.10</b> (masque 255.255.255.0).</p>
     <p>Puis, dans l'<b>invite de commandes</b> du Portable, tapez <code>ping 192.168.0.11</code>.</p>`,
-    checks:['J\'ai démarré les deux machines et réglé leurs adresses IP.', 'Le ping du Portable vers l\'Ordinateur a réussi.'] },
-  { t:'Sortir du réseau',
-    html:`<p>Dans le tableau, lancez chaque ping depuis la machine indiquée, puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets dans le simulateur.</p>
+    checks:[
+      { l:"Adresse IP de l'Ordinateur : 192.168.0.11", t:s => s.nodes.PC && s.nodes.PC.ip === '192.168.0.11' },
+      { l:"Adresse IP du Portable : 192.168.0.10", t:s => s.nodes.NB && s.nodes.NB.ip === '192.168.0.10' },
+      { l:"Ping du Portable vers 192.168.0.11 réussi", t:s => (lastStats(s.out, 'NB', '192.168.0.11') || 0) > 0 }
+    ] },
+  { t:'Sortir du réseau local',
+    html:`<p>Lancez chaque ping depuis la machine indiquée dans l'invite de commandes, puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets dans le simulateur.</p>
     <table class="m">
       <tr><th>Depuis</th><th>Vers</th><th>Résultat</th></tr>
-      <tr><td>Portable</td><td>Ordinateur 192.168.0.11</td><td>☐ Réussi ☐ Échec</td></tr>
-      <tr><td>Ordinateur</td><td>Portable 192.168.0.10</td><td>☐ Réussi ☐ Échec</td></tr>
-      <tr><td>Ordinateur</td><td>192.168.140.1</td><td>☐ Réussi ☐ Échec</td></tr>
-      <tr><td>Ordinateur</td><td>192.168.21.1</td><td>☐ Réussi ☐ Échec</td></tr>
-      <tr><td>Portable</td><td>192.168.140.1</td><td>☐ Réussi ☐ Échec</td></tr>
-      <tr><td>Portable</td><td>192.168.21.1</td><td>☐ Réussi ☐ Échec</td></tr>
-    </table>
-    <p class="legend">Observez le trajet des paquets dans le simulateur et le message de l'invite de commandes avant de répondre.</p>`,
-    checks:['J\'ai rempli les six lignes du tableau.'] },
+      ${ROWS.map(r => `<tr><td>${r.from}</td><td>${r.to}</td><td>
+        <label><input type="radio" name="r-${r.k}" onchange="setAns('${r.k}','ok')" ${answers[r.k] === 'ok' ? 'checked' : ''}> Réussi</label>
+        &nbsp; <label><input type="radio" name="r-${r.k}" onchange="setAns('${r.k}','ko')" ${answers[r.k] === 'ko' ? 'checked' : ''}> Échec</label>
+      </td></tr>`).join('')}
+    </table>`,
+    checks: ROWS.map(r => ({
+      l:`${r.from} → ${r.to} : ping lancé et réponse correctement indiquée`,
+      t:s => { const rec = lastStats(s.out, r.src, r.dst); return rec !== null && ((rec > 0) === (answers[r.k] === 'ok')); }
+    })) },
   { t:'La passerelle',
-    html:`<p>Le Portable fonctionne déjà vers l'extérieur. Ouvrez sa <b>configuration IP</b> et relevez sa <b>passerelle</b>. Reportez cette adresse comme passerelle de l'<b>Ordinateur</b>, puis tapez <code>ping 192.168.140.1</code> depuis l'Ordinateur. Observez le trajet du paquet sur le schéma.</p>`,
-    checks:['J\'ai relevé la passerelle du Portable et l\'ai reportée sur l\'Ordinateur.', 'Le ping de l\'Ordinateur vers 192.168.140.1 a réussi.'] },
+    html:`<p>Le Portable fonctionne déjà vers l'extérieur. Relevez sa <b>passerelle</b> dans sa configuration IP, puis reportez cette adresse comme passerelle de l'<b>Ordinateur</b>. Puis tapez <code>ping 192.168.140.1</code> depuis l'Ordinateur et observez le trajet du paquet.</p>`,
+    checks:[
+      { l:"Passerelle du Portable reportée sur l'Ordinateur", t:s => !!s.nodes.PC && !!s.nodes.NB && s.nodes.PC.gw !== '' && s.nodes.PC.gw === s.nodes.NB.gw },
+      { l:"Ping de l'Ordinateur vers 192.168.140.1 réussi", t:s => (lastStats(s.out, 'PC', '192.168.140.1') || 0) > 0 }
+    ] },
   { t:'Le site et le serveur DNS',
     html:`<p>Sur le Portable, ouvrez le <b>navigateur</b> et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
-    <p>Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (configuration IP), puis retapez le nom dans le navigateur.</p>`,
-    checks:['La page s\'affiche en tapant l\'adresse IP du serveur web.', 'Le nom du site s\'affiche après réglage du DNS sur les deux machines.'] },
+    <p>Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (configuration IP), puis retapez le nom dans le navigateur, et lancez <code>ping ${SITE}</code> dans l'invite de commandes.</p>`,
+    checks:[
+      { l:"Serveur DNS 192.168.140.1 réglé sur les deux machines", t:s => !!s.nodes.PC && !!s.nodes.NB && s.nodes.PC.dns === '192.168.140.1' && s.nodes.NB.dns === '192.168.140.1' },
+      { l:`Ping de ${SITE} réussi (par le nom)`, t:s => ['PC', 'NB'].some(h => (s.out[h] || []).some(x => x.indexOf('sur ' + SITE + ' [') >= 0) && (lastStats(s.out, h, '192.168.21.1') || 0) > 0) },
+      { l:"Page du site affichée dans le navigateur (vérifié par vous)", self:true }
+    ] },
   { t:'Bilan', recap:true,
     html:`<ul class="recap">
       <li><b>Adresse IP</b> identifie chaque machine ; les trois premiers nombres désignent le réseau.</li>
@@ -103,31 +145,57 @@ const STEPS = [
 ];
 
 let step = 0;
-const done = {};   // clé "étape-indice" => coché
+
+function stepOK(i) {
+  const s = sim(), st = STEPS[i];
+  if (!st.checks) return true;
+  return st.checks.every((c, j) => c.self ? !!selfDone[i + '-' + j] : (!!s && !!c.t(s)));
+}
+function setAns(k, v) { answers[k] = v; updateChecks(); }
+function setSelf(i, j, v) { selfDone[i + '-' + j] = v; updateChecks(); }
+
+function checksHTML() {
+  const st = STEPS[step];
+  if (!st.checks) return '';
+  const s = sim();
+  const items = st.checks.map((c, j) => {
+    if (c.self) return `<li><span class="st ${selfDone[step + '-' + j] ? 'ok' : 'wait'}">${selfDone[step + '-' + j] ? '✔' : '○'}</span><label><input type="checkbox" ${selfDone[step + '-' + j] ? 'checked' : ''} onchange="setSelf(${step},${j},this.checked)"> ${c.l}</label></li>`;
+    const ok = !!s && !!c.t(s);
+    const cls = !s ? 'wait' : ok ? 'ok' : 'ko';
+    return `<li><span class="st ${cls}">${!s ? '○' : ok ? '✔' : '✖'}</span><span>${c.l}</span></li>`;
+  }).join('');
+  const err = s ? '' : '<div class="simerr">Le simulateur ne répond pas : vérifiez qu\'il est bien affiché ci-dessous. La vérification automatique ne fonctionne pas si le simulateur est ouvert dans un autre onglet.</div>';
+  return `<div class="checks" style="margin-top:10px"><b>Vérification de cette étape :</b><ul>${items}</ul>${err}</div>`;
+}
 
 function render() {
   const st = STEPS[step];
-  document.getElementById('stepBar').innerHTML = STEPS.map((x, i) =>
-    `<button class="chip ${i === step ? 'cur' : ''} ${stepDone(i) ? 'ok' : ''}" onclick="setStep(${i})">${i + 1}. ${x.t}</button>`).join('');
   document.getElementById('stepNo').textContent = `Étape ${step + 1} sur ${STEPS.length}`;
   document.getElementById('stepTitle').textContent = st.t;
-  let body = st.html;
-  if (st.checks) {
-    body += '<div class="checks card" style="margin-top:10px"><b>Pour valider cette étape :</b>' +
-      st.checks.map((c, j) => `<label><input type="checkbox" ${done[step + '-' + j] ? 'checked' : ''} onchange="done['${step}-${j}']=this.checked;render()"> ${c}</label>`).join('') +
-      '</div>';
-  }
-  document.getElementById('stepBody').innerHTML = body;
+  document.getElementById('stepBody').innerHTML = st.html + '<div id="chk">' + checksHTML() + '</div>';
+  updateChecks();
+}
+
+// Mise à jour périodique : bascule des états, boutons et pastilles, sans reconstruire les réponses saisies
+function updateChecks() {
+  const chk = document.getElementById('chk');
+  if (chk && STEPS[step].checks) chk.innerHTML = checksHTML();
+  const f = STEPS.map((_, i) => stepOK(i));
+  document.getElementById('stepBar').innerHTML = STEPS.map((x, i) => {
+    const canGo = i <= step || f.slice(0, i).every(Boolean);
+    return `<button class="chip ${i === step ? 'cur' : ''} ${f[i] ? 'ok' : ''}" ${canGo ? '' : 'disabled'} onclick="setStep(${i})">${i + 1}. ${x.t}</button>`;
+  }).join('');
   document.getElementById('bPrev').disabled = step === 0;
-  document.getElementById('bNext').disabled = step >= STEPS.length - 1 || !stepDone(step);
+  document.getElementById('bNext').disabled = step >= STEPS.length - 1 || !f[step];
 }
-function stepDone(i) {
-  const st = STEPS[i];
-  return !st.checks || st.checks.every((_, j) => done[i + '-' + j]);
+function setStep(i) {
+  if (i > step && !stepOK(step)) return;
+  step = i; render(); window.scrollTo({ top:0, behavior:'smooth' });
 }
-function setStep(i) { if (i <= step || stepDone(step)) { step = i; render(); window.scrollTo({ top:0, behavior:'smooth' }); } }
 function go(d) { setStep(step + d); }
+
 render();
+setInterval(updateChecks, 1000);
 </script>
 </body>
 </html>

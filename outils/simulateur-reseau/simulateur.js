@@ -2844,4 +2844,13 @@
   // Lien direct : ...simulateur-reseau/?scenario=seance charge le scénario de la séance au démarrage
   var scenarioParam = new URLSearchParams(window.location.search).get('scenario');
   if (scenarioParam === 'seance') loadScenario();
+
+  // Lecture seule de l'état, utilisée par la page de séance pour vérifier le travail (même site)
+  window.simState = function () {
+    var nodes = {};
+    NODES.forEach(function (x) {
+      if (x.ifaces) nodes[x.id] = { label: x.label, ip: (x.ifaces[0] && x.ifaces[0].ip) || '', gw: x.gw || '', dns: x.dns || '' };
+    });
+    return { nodes: nodes, out: OUT, sim: isSim() };
+  };
 })();
