@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Simulation de réseau — étapes guidées (simulateur)</title>
+<style>
+  :root { --fg:#1d2330; --muted:#5b6475; --line:#d7dce5; --bg:#f6f7f9; --ok:#1f7a3d; --acc:#1f4e8c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:#fff; line-height:1.45; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+  h1 { font-size:1.05rem; margin:0; }
+  .steps, .hbtn { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { padding:5px 10px; border-radius:999px; border:1px solid #aab2c0; background:#fff; color:var(--fg); font-size:.85rem; cursor:pointer; }
+  .chip.cur { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .chip.ok::before { content:"✔ "; color:var(--ok); }
+  button { padding:6px 10px; border:0; border-radius:5px; background:var(--acc); color:#fff; font:inherit; font-size:.9rem; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.sec { background:#e7ebf2; color:var(--fg); }
+  main { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:12px; padding:12px; align-items:start; }
+  .sticky { position:sticky; top:100px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; margin-bottom:12px; }
+  .card h2 { font-size:.95rem; margin:0 0 6px; color:var(--acc); }
+  iframe.sim { width:100%; height:640px; border:1px solid var(--line); border-radius:6px; background:#fbfcfd; }
+  .legend { font-size:.82rem; color:var(--muted); margin-top:6px; }
+  .plan li { margin:4px 0; }
+  .checks label { display:flex; gap:8px; align-items:flex-start; font-size:.95rem; margin:6px 0; cursor:pointer; }
+  table.m { width:100%; border-collapse:collapse; font-size:.9rem; margin-top:6px; }
+  table.m th, table.m td { border:1px solid var(--line); padding:5px; text-align:left; vertical-align:middle; }
+  .recap { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; list-style:none; padding:0; }
+  .recap li { border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:6px; padding:10px 12px; background:#fbfcfe; }
+  .recap li b { display:block; color:var(--acc); margin-bottom:3px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } .sticky { position:static; } iframe.sim { height:560px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulation de réseau — étapes guidées</h1>
+  <div class="steps" id="stepBar"></div>
+  <div class="hbtn">
+    <button class="sec" id="bPrev" onclick="go(-1)">◀ Précédent</button>
+    <button id="bNext" onclick="go(1)">Suivant ▶</button>
+  </div>
+</header>
+
+<main>
+  <div class="sticky">
+    <div class="card">
+      <h2>Simulateur réseau</h2>
+      <iframe class="sim" src="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" title="Simulateur réseau"></iframe>
+      <div class="legend">Si le cadre reste vide, <a href="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" target="_blank" rel="noopener">ouvrir le simulateur dans un nouvel onglet</a>.</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div id="stepNo" style="font-size:.85rem;color:var(--muted)"></div>
+      <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 6px"></h2>
+      <div id="stepBody"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const SITE = 'www.monsite-snt.fr';
+
+const STEPS = [
+  { t:'Un réseau local',
+    html:`<p>Démarrez l'<b>Ordinateur</b> et le <b>Portable</b> dans le simulateur. Dans la configuration IP de chaque machine, réglez l'adresse : Ordinateur <b>192.168.0.11</b>, Portable <b>192.168.0.10</b> (masque 255.255.255.0).</p>
+    <p>Puis, dans l'<b>invite de commandes</b> du Portable, tapez <code>ping 192.168.0.11</code>.</p>`,
+    checks:['J\'ai démarré les deux machines et réglé leurs adresses IP.', 'Le ping du Portable vers l\'Ordinateur a réussi.'] },
+  { t:'Sortir du réseau',
+    html:`<p>Dans le tableau, lancez chaque ping depuis la machine indiquée, puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets dans le simulateur.</p>
+    <table class="m">
+      <tr><th>Depuis</th><th>Vers</th><th>Résultat</th></tr>
+      <tr><td>Portable</td><td>Ordinateur 192.168.0.11</td><td>☐ Réussi ☐ Échec</td></tr>
+      <tr><td>Ordinateur</td><td>Portable 192.168.0.10</td><td>☐ Réussi ☐ Échec</td></tr>
+      <tr><td>Ordinateur</td><td>192.168.140.1</td><td>☐ Réussi ☐ Échec</td></tr>
+      <tr><td>Ordinateur</td><td>192.168.21.1</td><td>☐ Réussi ☐ Échec</td></tr>
+      <tr><td>Portable</td><td>192.168.140.1</td><td>☐ Réussi ☐ Échec</td></tr>
+      <tr><td>Portable</td><td>192.168.21.1</td><td>☐ Réussi ☐ Échec</td></tr>
+    </table>
+    <p class="legend">Observez le trajet des paquets dans le simulateur et le message de l'invite de commandes avant de répondre.</p>`,
+    checks:['J\'ai rempli les six lignes du tableau.'] },
+  { t:'La passerelle',
+    html:`<p>Le Portable fonctionne déjà vers l'extérieur. Ouvrez sa <b>configuration IP</b> et relevez sa <b>passerelle</b>. Reportez cette adresse comme passerelle de l'<b>Ordinateur</b>, puis tapez <code>ping 192.168.140.1</code> depuis l'Ordinateur. Observez le trajet du paquet sur le schéma.</p>`,
+    checks:['J\'ai relevé la passerelle du Portable et l\'ai reportée sur l\'Ordinateur.', 'Le ping de l\'Ordinateur vers 192.168.140.1 a réussi.'] },
+  { t:'Le site et le serveur DNS',
+    html:`<p>Sur le Portable, ouvrez le <b>navigateur</b> et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
+    <p>Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (configuration IP), puis retapez le nom dans le navigateur.</p>`,
+    checks:['La page s\'affiche en tapant l\'adresse IP du serveur web.', 'Le nom du site s\'affiche après réglage du DNS sur les deux machines.'] },
+  { t:'Bilan', recap:true,
+    html:`<ul class="recap">
+      <li><b>Adresse IP</b> identifie chaque machine ; les trois premiers nombres désignent le réseau.</li>
+      <li><b>Switch</b> relie les machines d'un même réseau : elles se parlent directement.</li>
+      <li><b>Passerelle</b> fait sortir un paquet vers un autre réseau. Une machine ne l'utilise que hors de son réseau.</li>
+      <li><b>Box et NAT</b> remplacent l'adresse de départ par celle de la box, et retiennent qui a envoyé quoi pour que la réponse revienne.</li>
+      <li><b>Serveur DNS</b> traduit un nom (${SITE}) en adresse IP avant toute connexion.</li>
+      <li><b>Ping</b> envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</li>
+    </ul>
+    <p class="legend">Chemin d'une visite de site : Portable → serveur DNS (nom → adresse IP) → box → opérateur → serveur web (page affichée).</p>` }
+];
+
+let step = 0;
+const done = {};   // clé "étape-indice" => coché
+
+function render() {
+  const st = STEPS[step];
+  document.getElementById('stepBar').innerHTML = STEPS.map((x, i) =>
+    `<button class="chip ${i === step ? 'cur' : ''} ${stepDone(i) ? 'ok' : ''}" onclick="setStep(${i})">${i + 1}. ${x.t}</button>`).join('');
+  document.getElementById('stepNo').textContent = `Étape ${step + 1} sur ${STEPS.length}`;
+  document.getElementById('stepTitle').textContent = st.t;
+  let body = st.html;
+  if (st.checks) {
+    body += '<div class="checks card" style="margin-top:10px"><b>Pour valider cette étape :</b>' +
+      st.checks.map((c, j) => `<label><input type="checkbox" ${done[step + '-' + j] ? 'checked' : ''} onchange="done['${step}-${j}']=this.checked;render()"> ${c}</label>`).join('') +
+      '</div>';
+  }
+  document.getElementById('stepBody').innerHTML = body;
+  document.getElementById('bPrev').disabled = step === 0;
+  document.getElementById('bNext').disabled = step >= STEPS.length - 1 || !stepDone(step);
+}
+function stepDone(i) {
+  const st = STEPS[i];
+  return !st.checks || st.checks.every((_, j) => done[i + '-' + j]);
+}
+function setStep(i) { if (i <= step || stepDone(step)) { step = i; render(); window.scrollTo({ top:0, behavior:'smooth' }); } }
+function go(d) { setStep(step + d); }
+render();
+</script>
+</body>
+</html>
