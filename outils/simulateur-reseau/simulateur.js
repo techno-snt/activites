@@ -2347,8 +2347,7 @@
         printTo(h.id, p.msg + ' Ce poste ne peut pas communiquer sur le réseau.');
         return;
       } else if (p.unreach) {
-        // Un routeur ne sait pas où envoyer le paquet : il répond « Destination injoignable » (comme Windows)
-        recus++;
+        // Un routeur ne sait pas où envoyer le paquet : il répond « Destination injoignable », compté comme perdu
         printTo(h.id, 'Réponse de ' + p.unreach + ' : Destination injoignable.');
       } else {
         printTo(h.id, 'Délai d\'attente de la demande dépassé.');
