@@ -106,6 +106,14 @@
   function addLink(a, b) {
     if (!a || !b) return { ok: false, msg: 'Pas de port libre sur cet appareil.' };
     if (a.n === b.n) return { ok: false, msg: 'Impossible de relier un appareil à lui-même.' };
+    // Un opérateur se branche toujours sur le port W (vers l'opérateur) de la box
+    // Une box a des ports LAN portés par son commutateur caché : on remonte à la box
+    function boxOf(id) { return NODES.find(function (x) { return x.kind === 'box' && (x.id === id || x.lan === id); }); }
+    var opA = N(a.n) && N(a.n).kind === 'operator', opB = N(b.n) && N(b.n).kind === 'operator';
+    var boxA = boxOf(a.n), boxB = boxOf(b.n);
+    if ((opA && boxB) || (opB && boxA)) {
+      if (opA) b = { n: boxB.id, i: 1 }; else a = { n: boxA.id, i: 1 };
+    }
     if (linkAt(a.n, a.i) || linkAt(b.n, b.i)) return { ok: false, msg: 'Ce port est déjà branché.' };
     if (wirelessNode(N(a.n)) || wirelessNode(N(b.n))) return { ok: false, msg: (wirelessNode(N(a.n)) ? N(a.n) : N(b.n)).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.' };
     LINKS.push({ a: { n: a.n, i: a.i }, b: { n: b.n, i: b.i } });
