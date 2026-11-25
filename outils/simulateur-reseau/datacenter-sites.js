@@ -20,6 +20,7 @@ header a{color:#fed7aa;font-family:Arial,sans-serif;font-size:12px;text-decorati
 .card b{display:block;font-size:13px;color:#7c2d12}
 .card span{font-size:12px;color:#92400e}
 footer{background:#3b2314;color:#fde68a;font-family:Arial,sans-serif;font-size:11px;padding:10px 16px;line-height:1.5}
+@media (max-width: 480px){.hero{flex-direction:column;align-items:flex-start;text-align:left}.grid{grid-template-columns:1fr}.services{grid-template-columns:1fr}.film{flex-wrap:wrap}.time{margin-left:0}}
 </style></head><body>
 <header><h1>Boulangerie Dupont</h1><a>Accueil</a><a>Produits</a><a>Horaires</a><a>Contact</a></header>
 <div class="hero">
@@ -55,6 +56,7 @@ header h1{font-size:18px;margin:0;color:#facc15;letter-spacing:1px}
 .film small{color:#94a3b8;font-size:11px}
 .time{margin-left:auto;background:#facc15;color:#0b1020;font-weight:bold;border-radius:6px;padding:4px 8px;font-size:12px;white-space:nowrap}
 footer{font-size:11px;color:#94a3b8;padding:10px 16px;border-top:1px solid #1e293b;margin-top:6px}
+@media (max-width: 480px){.hero{flex-direction:column;align-items:flex-start;text-align:left}.grid{grid-template-columns:1fr}.services{grid-template-columns:1fr}.film{flex-wrap:wrap}.time{margin-left:0}}
 </style></head><body>
 <header><h1>CINÉMA LUMIÈRE</h1></header>
 <div class="hero">
@@ -90,10 +92,11 @@ header h1{font-size:17px;margin:0}
 .service b{display:block;color:#1e3a8a;margin-bottom:2px}
 .service span{color:#475569;font-size:11px}
 footer{background:#e2e8f0;font-size:11px;color:#334155;padding:10px 16px;line-height:1.5}
+@media (max-width: 480px){.hero{flex-direction:column;align-items:flex-start;text-align:left}.grid{grid-template-columns:1fr}.services{grid-template-columns:1fr}.film{flex-wrap:wrap}.time{margin-left:0}}
 </style></head><body>
 <header><h1>Mairie</h1></header>
 <div class="hero">
-<svg width="130" height="100" viewBox="0 0 130 100" aria-hidden="true">
+<svg width="130" height="108" viewBox="0 -8 130 108" aria-hidden="true">
 <rect x="0" y="0" width="130" height="100" rx="8" fill="#dbeafe"/>
 <circle cx="104" cy="22" r="10" fill="#fde68a"/>
 <path d="M20 44 L65 20 L110 44 Z" fill="#1e3a8a"/>
