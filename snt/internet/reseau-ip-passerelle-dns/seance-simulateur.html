@@ -291,6 +291,9 @@ function setStep(i) {
 function go(d) { setStep(step + d); }
 function fullSim() { const f = document.getElementById('sim'); if (f.requestFullscreen) f.requestFullscreen(); }
 
+// Aperçu : ?etape=N ouvre directement l'étape N (1 à 5), pour consulter le rendu sans refaire l'activité
+const etapeParam = parseInt(new URLSearchParams(window.location.search).get('etape'), 10);
+if (etapeParam >= 1 && etapeParam <= STEPS.length) step = etapeParam - 1;
 render();
 setInterval(updateChecks, 1000);
 </script>
