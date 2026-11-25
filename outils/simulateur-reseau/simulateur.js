@@ -2551,7 +2551,7 @@
       { id: 'BOX', kind: 'router', type: 'router', label: 'Box', ifaces: [{ ip: '192.168.0.254' }, { ip: '192.168.140.100', wan: true }], defGw: '192.168.140.254', x: 400, y: 205 },
       { id: 'SW2', kind: 'switch', type: 'switch', label: 'Switch du fournisseur', x: 570, y: 205 },
       { id: 'OP', kind: 'router', type: 'router', label: 'Routeur du fournisseur', ifaces: [{ ip: '192.168.140.254' }, { ip: '192.168.21.254' }], defGw: '', x: 750, y: 205 },
-      { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.boulangerie-dupont.fr': '192.168.21.1' }, x: 570, y: 80 },
+      { id: 'DNS', kind: 'pc', type: 'pc', label: 'Serveur DNS', ifaces: [{ ip: '192.168.140.1' }], gw: '192.168.140.254', dns: '', dnsSvc: true, software: ['dns'], records: { 'www.monsite-snt.fr': '192.168.21.1' }, x: 570, y: 80 },
       { id: 'WEB', kind: 'pc', type: 'pc', label: 'Serveur Web', ifaces: [{ ip: '192.168.21.1' }], gw: '192.168.21.254', dns: '', web: true, software: ['web'], x: 910, y: 205 }
     ];
     LINKS = []; BLOCKS = []; selBlock = null; OUT = {}; TRAMES = {}; selected = null; pending = null;
@@ -2840,4 +2840,8 @@
   setMode('select');
   refresh();
   setStatus('Ajoutez des appareils, ou chargez le scénario de la séance.');
+
+  // Lien direct : ...simulateur-reseau/?scenario=seance charge le scénario de la séance au démarrage
+  var scenarioParam = new URLSearchParams(window.location.search).get('scenario');
+  if (scenarioParam === 'seance') loadScenario();
 })();
