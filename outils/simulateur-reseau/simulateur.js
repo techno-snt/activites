@@ -109,6 +109,34 @@
     for (var k = 0; k < ts.length; k++) if (!linkAt(ts[k].n, ts[k].i)) return ts[k];
     return null;
   }
+  /* Adresse WAN fournie par l'opérateur : la box branchée sur son port W la reçoit automatiquement,
+     comme avec un DHCP chez l'opérateur. Elle est rendue au débranchement. */
+  var WAN_FIRST = '203.0.113.2', WAN_LAST = '203.0.113.250';
+  function wanLease(fai, box) {
+    fai.leases = fai.leases || {};
+    if (fai.leases[box.id]) return fai.leases[box.id];
+    var used = {};
+    Object.keys(fai.leases).forEach(function (k) { used[fai.leases[k]] = true; });
+    for (var v = ip2(WAN_FIRST); v <= ip2(WAN_LAST); v++) {
+      var a = int2ip(v);
+      if (!used[a]) { fai.leases[box.id] = a; return a; }
+    }
+    return '';
+  }
+  function connectWan(fai, box) {
+    var w = box.ifaces[1];
+    if (!w || w.ip) return;
+    var a = wanLease(fai, box);
+    if (!a) return;
+    w.ip = a; w.mask = '255.255.255.0';
+    if (!box.defGw) box.defGw = FAI_IP;
+  }
+  function disconnectWan(fai, box) {
+    var w = box.ifaces[1];
+    if (!w || !fai.leases || fai.leases[box.id] !== w.ip) return;
+    w.ip = ''; w.mask = ''; delete fai.leases[box.id];
+    if (box.defGw === FAI_IP) box.defGw = '';
+  }
   function addLink(a, b) {
     if (!a || !b) return { ok: false, msg: 'Pas de port libre sur cet appareil.' };
     if (a.n === b.n) return { ok: false, msg: 'Impossible de relier un appareil à lui-même.' };
@@ -127,6 +155,7 @@
     // Box branchée au fournisseur d'accès : elle reprend son DNS (modifiable ensuite)
     var faiE = faiA || faiB, boxE = faiA ? boxB : boxA;
     if (faiE && boxE && faiE.ifaces[0].ip) boxE.wanDns = faiE.ifaces[0].ip;
+    if (faiE && boxE) connectWan(faiE, boxE);
     return { ok: true };
   }
 
@@ -473,7 +502,7 @@
       if (k.fai) {
         // Fournisseur d'accès : aucune configuration ; son point de connexion accepte plusieurs box
         n.ifaces = [{ ip: FAI_IP, mask: '255.255.255.0' }];
-        n.dnsSvc = true; n.records = faiRecords(); n.software = ['dns']; n.fixed = true;
+        n.dnsSvc = true; n.records = faiRecords(); n.software = ['dns']; n.fixed = true; n.leases = {};
       }
     } else if (k.type !== 'switch') {
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
@@ -521,6 +550,9 @@
   }
   function removeLink(l) {
     LINKS = LINKS.filter(function (x) { return x !== l; });
+    var fai = NODES.find(function (x) { return x.kind === 'fai' && (x.id === l.a.n || x.lan === l.a.n || x.id === l.b.n || x.lan === l.b.n); });
+    var box = NODES.find(function (x) { return x.kind === 'box' && (x.id === l.a.n || x.lan === l.a.n || x.id === l.b.n || x.lan === l.b.n); });
+    if (fai && box) disconnectWan(fai, box);
     setStatus('Câble débranché.');
     refresh();
   }
@@ -1006,7 +1038,7 @@
   function upgradeNode(n) {
     // Fournisseur et datacenter : contenu fixe, toujours celui du simulateur (pas celui d'un ancien fichier)
     if (n.kind === 'datacenter') { n.sites = JSON.parse(JSON.stringify(DC_SITES)); n.web = true; n.fixed = true; }
-    if (n.kind === 'fai') { n.records = faiRecords(); n.fixed = true; }
+    if (n.kind === 'fai') { n.records = faiRecords(); n.fixed = true; n.leases = n.leases || {}; }
     if (n.type !== 'server') return;
     n.type = 'pc'; n.kind = 'pc';
     n.software = n.software || [];
