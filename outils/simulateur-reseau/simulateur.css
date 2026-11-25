@@ -435,6 +435,9 @@ body.sim #canvas { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; }
 body.sim .desk-zone { position: relative; inset: auto; grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; border-left: 2px solid var(--line); background: #e2e8f0; }
 body.sim .legend { left: 12px; right: auto; bottom: 12px; max-width: 200px; }
 body.sim .plan-hint { display: none; }
+/* En simulation, le plan est verrouillé : le panneau Configuration n'a plus lieu d'être et laisse la place au plan et au bureau */
+body.sim .app-shell { grid-template-columns: 84px minmax(0, 1fr); grid-template-areas: "tool tool" "pal stage" "status status"; }
+body.sim .props { display: none; }
 .dns-btns { display: flex; gap: 8px; margin-bottom: 12px; }
 .dns-btns button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; color: var(--ink); font: inherit; font-size: .85rem; cursor: pointer; }
 .dns-btns button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
