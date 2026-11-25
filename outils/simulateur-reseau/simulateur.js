@@ -1512,6 +1512,21 @@
     { id: 'nav', label: 'Navigateur web', tile: 'Nav', cls: 'net' }
   ];
   var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
+  // Interface en simulation selon l'appareil : pc (bureau complet), mobile (navigateur seul),
+  // tv (état de connexion seul), none (pas d'interface : imprimante, objet connecté)
+  function deskKind(h) {
+    if (h.kind === 'smartphone' || h.kind === 'tablet') return 'mobile';
+    if (h.kind === 'tv') return 'tv';
+    if (h.kind === 'printer' || h.kind === 'iot') return 'none';
+    return 'pc';
+  }
+  // Connecté au réseau : une adresse IP, et un câble ou un Wi-Fi valide
+  function netOk(h) {
+    var f = h.ifaces && h.ifaces[0];
+    if (!f || !f.ip) return false;
+    if (f.wifi) { var ws = wifiState(h); return !!(ws && ws.ok); }
+    return !!linkAt(h.id, 0);
+  }
   var hasSoft = function (n, id) { return (n.software || []).indexOf(id) >= 0; };
   // Installer ou désinstaller un logiciel. Serveur web et Serveur DNS fixent les services du serveur.
   // Fichier index.html du site, tel qu'il est au départ
@@ -1538,6 +1553,7 @@
     if (!isSim()) return;
     var h = N(hostId);
     if (!h || h.type === 'switch' || h.type === 'router') return;
+    if (type === 'desk' && deskKind(h) === 'none') { setStatus(h.label + ' : pas d\'interface en mode simulation.'); return; }
     var ex = WINS.find(function (w) { return w.type === type && w.host === hostId && (!extra || w.file === extra.file); });
     if (ex) ex.min = false;
     if (!ex) {
@@ -1903,7 +1919,10 @@
     win.appendChild(winHead(w, 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')'));
     var screen = document.createElement('div'); screen.className = 'desk-screen';
     var grid = document.createElement('div'); grid.className = 'desk-icons';
-    var apps = [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }, { id: 'trames', label: 'Échanges de données', tile: 'Tr', cls: 'net' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }));
+    var kind = deskKind(h);
+    var apps = kind === 'pc'
+      ? [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }, { id: 'trames', label: 'Échanges de données', tile: 'Tr', cls: 'net' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }))
+      : kind === 'mobile' ? [softOf('nav')] : [];
     apps.forEach(function (a) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'desk-icon';
       var t = document.createElement('span'); t.className = 'tile ' + (a.cls || ''); t.textContent = a.tile;
@@ -1923,10 +1942,15 @@
       grid.appendChild(b);
     });
     screen.appendChild(grid);
-    if (!(h.software || []).length) {
+    if (kind === 'pc' && !(h.software || []).length) {
       var note = document.createElement('p'); note.className = 'desk-note';
       note.textContent = 'Aucun logiciel installé. Ouvrez « Installation des logiciels » pour en ajouter.';
       screen.appendChild(note);
+    }
+    if (kind === 'tv') {
+      var tvn = document.createElement('p'); tvn.className = 'desk-note';
+      tvn.textContent = netOk(h) ? 'Télévision connectée au réseau (' + h.ifaces[0].ip + ').' : 'Pas de connexion au réseau : la télévision ne peut rien afficher.';
+      screen.appendChild(tvn);
     }
     var bar = document.createElement('div'); bar.className = 'taskbar';
     var start = document.createElement('span'); start.className = 'start'; start.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>';
