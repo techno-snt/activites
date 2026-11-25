@@ -589,3 +589,4 @@ button:not(:disabled):active { transform: scale(.97); }
 /* Fenêtres d'application : jamais plus larges que l'écran du bureau (la poignée reste visible) */
 .desk-screen > .dwin.app { max-width: calc(100% - 16px); }
 .dwin.img .img-body { flex: 1 1 auto; min-height: 0; }
+.edit-expl { margin: 0; font-size: .85rem; color: var(--muted); max-width: none; }

@@ -1793,8 +1793,19 @@
     var win = document.createElement('section'); win.className = 'dwin app edit'; win.setAttribute('aria-label', 'Éditeur de textes de ' + h.label);
     win.appendChild(winHead(w, 'Éditeur de textes · ' + h.label));
     var body = document.createElement('div'); body.className = 'dwin-body edit-body';
+    if (!hasSoft(h, 'web')) {
+      // Pas de site sur cette machine : l'éditeur n'a aucun fichier de site à ouvrir
+      var none = document.createElement('p'); none.className = 'edit-name';
+      none.textContent = 'Aucun fichier à ouvrir : ce poste n\'héberge pas de site.';
+      var expl = document.createElement('p'); expl.className = 'edit-expl';
+      expl.textContent = 'L\'éditeur modifie la page d\'accueil (index.html) d\'un serveur web. Ouvrez l\'éditeur sur le serveur web.';
+      body.appendChild(none); body.appendChild(expl);
+      win.appendChild(body);
+      decorateWin(win, w, box);
+      return win;
+    }
     var name = document.createElement('p'); name.className = 'edit-name';
-    name.textContent = 'index.html' + (hasSoft(h, 'web') ? ' · publié par le serveur web' : ' · pas de serveur web : fichier non publié');
+    name.textContent = 'index.html · publié par le serveur web';
     var ta = document.createElement('textarea'); ta.spellcheck = false; ta.setAttribute('aria-label', 'Contenu de index.html');
     ta.value = h.pageHtml || defaultPage(h);
     var save = document.createElement('button'); save.type = 'button'; save.className = 'edit-save'; save.textContent = 'Enregistrer';
