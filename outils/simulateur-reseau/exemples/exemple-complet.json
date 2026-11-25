@@ -55,23 +55,6 @@
       "software": [
         "web"
       ],
-      "sites": [
-        {
-          "name": "www.boulangerie-dupont.fr",
-          "title": "Boulangerie Dupont",
-          "html": "<h1>Boulangerie Dupont</h1>\n<p>Pain, viennoiseries et gâteaux, faits chaque matin.</p>"
-        },
-        {
-          "name": "www.cinema-lumiere.fr",
-          "title": "Cinéma Lumière",
-          "html": "<h1>Cinéma Lumière</h1>\n<p>Les séances de la semaine et les tarifs.</p>"
-        },
-        {
-          "name": "www.mairie-exemple.fr",
-          "title": "Mairie",
-          "html": "<h1>Mairie</h1>\n<p>Horaires d'ouverture et démarches en ligne.</p>"
-        }
-      ],
       "fixed": true
     },
     {

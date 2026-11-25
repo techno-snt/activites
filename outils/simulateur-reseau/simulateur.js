@@ -8,11 +8,8 @@
   var SWITCH_PORTS = 8;
   // Fournisseur d'accès et datacenter : adresses et sites fixes, rien n'est configurable
   var FAI_IP = '203.0.113.1', DC_IP = '203.0.113.10';
-  var DC_SITES = [
-    { name: 'www.boulangerie-dupont.fr', title: 'Boulangerie Dupont', html: '<h1>Boulangerie Dupont</h1>\n<p>Pain, viennoiseries et gâteaux, faits chaque matin.</p>' },
-    { name: 'www.cinema-lumiere.fr', title: 'Cinéma Lumière', html: '<h1>Cinéma Lumière</h1>\n<p>Les séances de la semaine et les tarifs.</p>' },
-    { name: 'www.mairie-exemple.fr', title: 'Mairie', html: '<h1>Mairie</h1>\n<p>Horaires d\'ouverture et démarches en ligne.</p>' }
-  ];
+  // Sites du datacenter : fichier datacenter-sites.js (contenu fixe)
+  var DC_SITES = window.DC_SITES || [];
   function faiRecords() { var r = {}; DC_SITES.forEach(function (x) { r[x.name] = DC_IP; }); return r; }
 
   /* ===================== Moteur ===================== */
@@ -1007,6 +1004,9 @@
 
   // Plans d'avant : un « serveur » devient un ordinateur avec ses services installés
   function upgradeNode(n) {
+    // Fournisseur et datacenter : contenu fixe, toujours celui du simulateur (pas celui d'un ancien fichier)
+    if (n.kind === 'datacenter') { n.sites = JSON.parse(JSON.stringify(DC_SITES)); n.web = true; n.fixed = true; }
+    if (n.kind === 'fai') { n.records = faiRecords(); n.fixed = true; }
     if (n.type !== 'server') return;
     n.type = 'pc'; n.kind = 'pc';
     n.software = n.software || [];
@@ -1846,7 +1846,7 @@
     var body = document.createElement('div'); body.className = 'dwin-body nav-body';
     var bar = document.createElement('form'); bar.className = 'nav-bar';
     var inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.placeholder = 'www.boulangerie-dupont.fr'; inp.value = w.url || ''; inp.setAttribute('aria-label', 'Adresse à ouvrir');
+    inp.placeholder = 'Tapez une adresse web, puis Entrée'; inp.value = w.url || ''; inp.setAttribute('aria-label', 'Adresse à ouvrir');
     inp.addEventListener('input', function () { w.url = inp.value; });
     var go = document.createElement('button'); go.type = 'submit'; go.title = 'Ouvrir cette adresse'; go.setAttribute('aria-label', 'Ouvrir');
     go.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>';
