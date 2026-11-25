@@ -376,6 +376,7 @@ body.sim .props .danger, body.sim .props .field.check input { pointer-events: no
 .term-app-out { margin: 0; flex: 1; min-height: 160px; overflow: auto; background: #0c0c0c; color: #cccccc; font-family: var(--mono); font-size: .85rem; line-height: 1.4; padding: 10px 12px; cursor: text; }
 .term-lines { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .term-prompt { display: flex; align-items: baseline; margin: 0; }
+.term-prompt[hidden] { display: none; }
 .term-ps { flex: 0 0 auto; white-space: pre; color: inherit; }
 .term-prompt input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; padding: 0; caret-color: #cccccc; }
 .conn-table td:last-child { font-family: inherit; font-size: .82rem; }

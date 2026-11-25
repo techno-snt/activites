@@ -1907,6 +1907,7 @@
     inp.setAttribute('aria-label', 'Saisie de la commande'); inp.value = w.draft || '';
     inp.addEventListener('input', function () { w.draft = inp.value; });
     form.appendChild(ps); form.appendChild(inp);
+    form.hidden = termBusy;
     // Historique des commandes par machine : flèches haut et bas pour rappeler une commande tapée
     var hist = cmdHist[h.id] = cmdHist[h.id] || [];
     var hi = hist.length;
@@ -2440,8 +2441,16 @@
   async function runCommand(line) {
     var hb = N(termHost.value);
     if (hb && termBusy) { printTo(hb.id, 'Patientez : la commande précédente n\'est pas terminée.'); return; }
-    termBusy = true;
-    try { await runCommandNow(line); } finally { termBusy = false; }
+    termBusy = true; refreshTermPrompts();
+    try { await runCommandNow(line); } finally { termBusy = false; refreshTermPrompts(); }
+  }
+  // L'invite des fenêtres de ligne de commande n'apparaît qu'une fois la commande terminée
+  function refreshTermPrompts() {
+    deskZone.querySelectorAll('.term-prompt').forEach(function (f) { f.hidden = termBusy; });
+    if (!termBusy) {
+      var win = deskZone.querySelector('.term-app[data-host="' + termHost.value + '"] .term-prompt input');
+      if (win) win.focus();
+    }
   }
   async function runCommandNow(line) {
     var h = N(termHost.value);
