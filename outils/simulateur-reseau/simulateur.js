@@ -422,7 +422,7 @@
     tablet: { label: 'Tablette', type: 'pc', sansFil: true },
     printer: { label: 'Imprimante', type: 'pc' },
     tv: { label: 'Smart TV', type: 'pc', sansFil: true },
-    iot: { label: 'Objet connecté', type: 'pc', sansFil: true },
+    iot: { label: 'Enceinte connectée', type: 'pc', sansFil: true },
     // Nœuds virtuels : Internet n'est pas simulé en détail, ils représentent l'opérateur et les serveurs distants
     operator: { label: 'Opérateur internet', type: 'router', virtual: true, operator: true },
     datacenter: { label: 'Datacenter', type: 'pc', virtual: true },
@@ -1513,7 +1513,7 @@
   ];
   var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
   // Interface en simulation selon l'appareil : pc (bureau complet), mobile (navigateur seul),
-  // tv (état de connexion seul), none (pas d'interface : imprimante, objet connecté)
+  // tv (état de connexion seul), none (pas d'interface : imprimante, enceinte connectée)
   function deskKind(h) {
     if (h.kind === 'smartphone' || h.kind === 'tablet') return 'mobile';
     if (h.kind === 'tv') return 'tv';
