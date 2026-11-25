@@ -59,6 +59,18 @@
   body.bilan .steps-card { height:auto; overflow:visible; font-size:1rem; }
   body.bilan .recap { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
   body.bilan .recap li { padding:16px 18px; font-size:1.02rem; }
+  table.m label { display:block; margin:3px 0; white-space:nowrap; }
+  .bilan .bt { font-size:1.4rem; color:var(--acc); margin:0 0 14px; }
+  .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:18px; }
+  .fn { border:2px solid var(--acc); border-radius:10px; padding:10px 14px; background:#eef4ff; text-align:center; min-width:140px; }
+  .fn b { display:block; color:var(--acc); } .fn small { color:var(--muted); }
+  .ar { font-size:1.6rem; color:var(--acc); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+  .kc { position:relative; border:1px solid var(--line); border-radius:10px; padding:16px 16px 14px 62px; background:#fbfcfe; }
+  .kc .num { position:absolute; left:14px; top:14px; width:34px; height:34px; border-radius:50%; background:var(--acc); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .kc h3 { margin:0 0 4px; font-size:1.05rem; color:var(--acc); }
+  .kc p { margin:0; font-size:.98rem; }
+  .rule { margin-top:18px; padding:14px 16px; border-left:5px solid var(--ok); background:#f1faf4; border-radius:6px; font-size:1.02rem; }
 </style>
 </head>
 <body>
@@ -155,23 +167,38 @@ const STEPS = [
     html:`<p>Le serveur DNS et le serveur Web sont des <b>serveurs</b> (palette « Serveur »), déjà en place.</p>
     <p><b>1. Installez le navigateur sur le Portable.</b> Cliquez sur le Portable dans le plan : son bureau s'affiche. Ouvrez <b>Installation des logiciels</b>, sélectionnez le <b>Navigateur web</b> et installez-le.</p>
     <p><b>2.</b> Ouvrez le <b>Navigateur web</b> du Portable et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
-    <p><b>3.</b> Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (panneau Configuration, en mode conception). Revenez en mode simulation, retapez le nom dans le navigateur, puis lancez <code>ping ${SITE}</code> dans la Ligne de commande.</p>`,
+    <p><b>3.</b> Tapez <code>${SITE}</code> : cela ne marche pas, le serveur DNS ne connaît pas encore ce nom.</p>
+    <p><b>4. Ajoutez la correspondance sur le serveur DNS.</b> En mode conception, cliquez sur le Serveur DNS. Dans le panneau Configuration, champ <b>Enregistrements DNS</b>, écrivez <code>${SITE}=192.168.21.1</code>.</p>
+    <p><b>5. Démarrez le service DNS.</b> Dans le bureau du Serveur DNS, ouvrez le service DNS et cliquez sur <b>Démarrer le service</b>. Un service arrêté ne répond à aucune machine.</p>
+    <p><b>6. Réglez le DNS.</b> Sur les deux machines, indiquez le serveur DNS <b>192.168.140.1</b> (panneau Configuration). Revenez en mode simulation, retapez le nom dans le navigateur, puis lancez <code>ping ${SITE}</code> dans la Ligne de commande.</p>`,
     checks:[
       { l:"Navigateur web installé sur le Portable", t:s => !!s.nodes.NB && s.nodes.NB.sw.indexOf('nav') >= 0 },
+      { l:`Correspondance ${SITE} = 192.168.21.1 ajoutée sur le serveur DNS`, t:s => !!s.nodes.DNS && s.nodes.DNS.rec[SITE] === '192.168.21.1' },
+      { l:"Service DNS démarré sur le serveur DNS", t:s => !!s.nodes.DNS && !(s.nodes.DNS.svcStop && s.nodes.DNS.svcStop.dns) },
       { l:"Serveur DNS 192.168.140.1 réglé sur les deux machines", t:s => !!s.nodes.PC && !!s.nodes.NB && s.nodes.PC.dns === '192.168.140.1' && s.nodes.NB.dns === '192.168.140.1' },
       { l:`Ping de ${SITE} réussi (par le nom)`, t:s => ['PC', 'NB'].some(h => (s.out[h] || []).some(x => x.indexOf('sur ' + SITE + ' [') >= 0) && (lastStats(s.out, h, '192.168.21.1') || 0) > 0) },
       { l:"Page du site affichée dans le navigateur (vérifié par vous)", self:true }
     ] },
   { t:'Bilan', recap:true,
-    html:`<ul class="recap">
-      <li><b>Adresse IP</b> identifie chaque machine ; les trois premiers nombres désignent le réseau.</li>
-      <li><b>Switch</b> relie les machines d'un même réseau : elles se parlent directement.</li>
-      <li><b>Passerelle</b> fait sortir un paquet vers un autre réseau. Une machine ne l'utilise que hors de son réseau.</li>
-      <li><b>Box et NAT</b> remplacent l'adresse de départ par celle de la box, et retiennent qui a envoyé quoi pour que la réponse revienne.</li>
-      <li><b>Serveur DNS</b> traduit un nom (${SITE}) en adresse IP avant toute connexion.</li>
-      <li><b>Ping</b> envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</li>
-    </ul>
-    <p class="legend">Chemin d'une visite de site : Portable → serveur DNS (nom → adresse IP) → box → opérateur → serveur web (page affichée).</p>` }
+    html:`<div class="bilan">
+      <h2 class="bt">Ce qu'il faut retenir</h2>
+      <div class="flow">
+        <div class="fn"><b>Portable</b><small>demande un site</small></div><span class="ar">→</span>
+        <div class="fn"><b>Serveur DNS</b><small>nom → adresse IP</small></div><span class="ar">→</span>
+        <div class="fn"><b>Box</b><small>passerelle, NAT</small></div><span class="ar">→</span>
+        <div class="fn"><b>Opérateur</b><small>routeur</small></div><span class="ar">→</span>
+        <div class="fn"><b>Serveur web</b><small>page affichée</small></div>
+      </div>
+      <div class="cards">
+        <div class="kc"><div class="num">1</div><h3>Adresse IP</h3><p>Identifie chaque machine. Les trois premiers nombres désignent le réseau.</p></div>
+        <div class="kc"><div class="num">2</div><h3>Switch</h3><p>Relie les machines d'un même réseau : elles se parlent directement.</p></div>
+        <div class="kc"><div class="num">3</div><h3>Passerelle</h3><p>Fait sortir un paquet vers un autre réseau. Une machine ne l'utilise que hors de son réseau.</p></div>
+        <div class="kc"><div class="num">4</div><h3>Box et NAT</h3><p>Remplacent l'adresse de départ par celle de la box, et retiennent qui a envoyé quoi pour que la réponse revienne.</p></div>
+        <div class="kc"><div class="num">5</div><h3>Serveur DNS</h3><p>Traduit un nom (${SITE}) en adresse IP avant toute connexion. Il doit être démarré pour répondre.</p></div>
+        <div class="kc"><div class="num">6</div><h3>Ping</h3><p>Envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</p></div>
+      </div>
+      <div class="rule"><b>Pour qu'une machine joigne un site d'un autre réseau</b>, il faut une adresse IP, une passerelle, un serveur DNS qui connaît le nom, et un serveur web qui répond.</div>
+    </div>` }
 ];
 
 let step = 0;
