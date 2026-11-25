@@ -74,6 +74,7 @@
   .rule { margin-top:18px; padding:14px 16px; border-left:5px solid var(--ok); background:#f1faf4; border-radius:6px; font-size:1.02rem; }
   /* Fiche de synthèse (bilan) */
   .fiche { max-width:1000px; margin:0 auto; color:#111; }
+  .fiche .bt { font-size:1.4rem; color:var(--acc); margin:0 0 12px; }
   .fh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:3px solid var(--acc); padding-bottom:10px; margin-bottom:6px; }
   .fh h2 { margin:0; font-size:1.7rem; color:var(--acc); }
   .fh p { margin:2px 0 0; color:var(--muted); }
@@ -208,12 +209,7 @@ const STEPS = [
     ] },
   { t:'Bilan', recap:true,
     html:`<article class="fiche">
-      <header class="fh">
-        <div><h2>Fiche de synthèse</h2><p>Simulation de réseau : adresse IP, passerelle, DNS</p></div>
-        <div class="fmeta">Nom : ____________________<br>Classe : ________</div>
-      </header>
-
-      <h3>1. Les notions</h3>
+      <h2 class="bt">Résumé des notions</h2>
       <table class="synth">
         <tr><th>Notion</th><th>Rôle</th><th>Dans la simulation</th></tr>
         <tr><td><b>Adresse IP</b></td><td>Identifie une machine. Les trois premiers nombres désignent son réseau.</td><td>Ordinateur 192.168.0.11 ; Portable 192.168.0.10</td></tr>
@@ -224,7 +220,7 @@ const STEPS = [
         <tr><td><b>Ping</b></td><td>Envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</td><td>Ligne de commande de chaque machine</td></tr>
       </table>
 
-      <h3>2. Le chemin d'une visite de site</h3>
+      <h3>Le chemin d'une visite de site</h3>
       <ol class="chemin">
         <li>Le Portable demande au serveur DNS (192.168.140.1) l'adresse de ${SITE}.</li>
         <li>Le serveur DNS répond : 192.168.21.1.</li>
@@ -233,21 +229,13 @@ const STEPS = [
         <li>Le serveur web renvoie la page, qui s'affiche dans le navigateur.</li>
       </ol>
 
-      <h3>3. Pour joindre un site d'un autre réseau, il faut</h3>
+      <h3>Pour joindre un site d'un autre réseau, il faut</h3>
       <ul class="cl">
         <li>une adresse IP sur chaque machine ;</li>
         <li>une passerelle pour sortir du réseau local ;</li>
         <li>un serveur DNS qui connaît le nom, et qui est démarré ;</li>
         <li>un serveur web qui répond à l'adresse IP trouvée.</li>
       </ul>
-
-      <h3>4. Mes réponses</h3>
-      <p class="q">Pourquoi le ping vers 192.168.140.1 échoue-t-il depuis l'Ordinateur avant le réglage de la passerelle ?</p>
-      <div class="ligne"></div><div class="ligne"></div>
-      <p class="q">Que se passe-t-il si le service DNS est arrêté ?</p>
-      <div class="ligne"></div><div class="ligne"></div>
-
-      <div class="ft"><button class="sec" onclick="window.print()">Imprimer la fiche</button></div>
     </article>` }
 ];
 
