@@ -1310,12 +1310,12 @@
       return function (inp) {
         var v = inp.value.trim();
         if (v && !ipOK(v)) { setStatus('Adresse invalide : « ' + v + ' ».'); inp.value = inp.defaultValue; return; }
-        n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
+        n.pool = n.pool || { start: '', end: '' }; n.pool[key] = v; inp.defaultValue = v; setStatus('Plage enregistrée.');
         draw();
       };
     };
-    field(parent, 'Plage : première adresse', n.pool.start, poolChange('start'), 'Exemple : 192.168.0.100');
-    field(parent, 'Plage : dernière adresse', n.pool.end, poolChange('end'), 'Exemple : 192.168.0.150');
+    field(parent, 'Plage : première adresse', (n.pool || {}).start || '', poolChange('start'), 'Exemple : 192.168.0.100');
+    field(parent, 'Plage : dernière adresse', (n.pool || {}).end || '', poolChange('end'), 'Exemple : 192.168.0.150');
     field(parent, 'Passerelle distribuée', n.dhcpGw, ipChange(function (v) { n.dhcpGw = v; }), 'Le routeur du réseau local, transmis aux machines.');
     field(parent, 'DNS distribué', n.dhcpDns, ipChange(function (v) { n.dhcpDns = v; }), 'Le serveur DNS, transmis aux machines.');
     var lt = document.createElement('p'); lt.className = 'area-label'; lt.textContent = 'Adresses attribuées';
