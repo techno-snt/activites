@@ -190,6 +190,9 @@
           if (e.n !== cur && N(e.n).ifaces && N(e.n).ifaces[e.i] && N(e.n).ifaces[e.i].ip === dst) { m = e; break; }
         }
         if (!m) return { ok: false, msg: 'Délai d\'attente dépassé : aucune machine ne répond à ' + dst + ' sur son réseau.', hops: hops };
+        // Trafic entre une box et le réseau de l'opérateur : il passe par le routeur du fournisseur d'accès
+        var faiN = NODES.find(function (x) { return x.kind === 'fai'; });
+        if (faiN && m.n !== faiN.id && seg.some(function (e) { return e.n === faiN.id && e.i === 0; })) hops.push(faiN.id);
         if (node.type === 'router' && f.wan && !node.ifaces.some(function (g) { return g.ip === dst; })) {
           var inside = node.ifaces.some(function (g, j) { return j !== i && g.ip && sameNet(g.ip, maskOf(g), src); });
           if (inside) { node.nat = node.nat || {}; node.nat[pid] = src; src = f.ip; }
@@ -2339,6 +2342,14 @@
         var ms = pingLatency(p.legs);
         times.push(ms < 1 ? 0 : Math.round(ms));
         printTo(h.id, 'Réponse de ' + ip + ' : octets=32 temps' + pingTime(ms) + ' TTL=' + ttlOf(p.legs[1] || p.legs[0]));
+      } else if (p.msg && /^Conflit d'adresse/.test(p.msg)) {
+        // Adresse en double : la machine ne peut rien envoyer ni recevoir, on l'indique clairement
+        printTo(h.id, p.msg + ' Ce poste ne peut pas communiquer sur le réseau.');
+        return;
+      } else if (p.unreach) {
+        // Un routeur ne sait pas où envoyer le paquet : il répond « Destination injoignable » (comme Windows)
+        recus++;
+        printTo(h.id, 'Réponse de ' + p.unreach + ' : Destination injoignable.');
       } else {
         printTo(h.id, 'Délai d\'attente de la demande dépassé.');
       }
