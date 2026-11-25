@@ -53,6 +53,12 @@
   .recap { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; list-style:none; padding:0; }
   .recap li { border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:6px; padding:10px 12px; background:#fbfcfe; }
   .recap li b { display:block; color:var(--acc); margin-bottom:3px; }
+  /* Bilan : pleine largeur, sans simulateur */
+  body.bilan main { display:block; height:auto; padding:16px 22px; }
+  body.bilan .sim-card { display:none; }
+  body.bilan .steps-card { height:auto; overflow:visible; font-size:1rem; }
+  body.bilan .recap { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+  body.bilan .recap li { padding:16px 18px; font-size:1.02rem; }
 </style>
 </head>
 <body>
@@ -116,15 +122,17 @@ function sim() {
 
 const STEPS = [
   { t:'Un réseau local',
-    html:`<p>Dans le simulateur, réglez l'adresse de chaque machine dans sa <b>configuration IP</b> : Ordinateur <b>192.168.0.11</b>, Portable <b>192.168.0.10</b> (masque 255.255.255.0).</p>
-    <p>Puis, dans l'<b>invite de commandes</b> du Portable, tapez <code>ping 192.168.0.11</code>.</p>`,
+    html:`<p><b>1. Réglez les adresses.</b> En mode conception, cliquez sur l'Ordinateur dans le plan, puis réglez son adresse dans le panneau <b>Configuration</b> : <b>192.168.0.11</b> (masque 255.255.255.0). Faites de même pour le Portable : <b>192.168.0.10</b>.</p>
+    <p><b>2. Passez en mode simulation.</b> Cliquez sur <b>▶ Mode simulation</b>, au-dessus du plan. Le plan se verrouille : c'est dans ce mode que l'on lance les pings. Pour modifier une adresse, revenez en mode conception.</p>
+    <p><b>3.</b> Sur le Portable, ouvrez la <b>Ligne de commande</b> (icône sur le bureau du Portable) et tapez <code>ping 192.168.0.11</code>.</p>`,
     checks:[
       { l:"Adresse IP de l'Ordinateur : 192.168.0.11", t:s => s.nodes.PC && s.nodes.PC.ip === '192.168.0.11' },
       { l:"Adresse IP du Portable : 192.168.0.10", t:s => s.nodes.NB && s.nodes.NB.ip === '192.168.0.10' },
+      { l:"Mode simulation activé", t:s => s.sim === true },
       { l:"Ping du Portable vers 192.168.0.11 réussi", t:s => (lastStats(s.out, 'NB', '192.168.0.11') || 0) > 0 }
     ] },
   { t:'Sortir du réseau local',
-    html:`<p>Lancez chaque ping depuis la machine indiquée dans l'invite de commandes, puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets dans le simulateur.</p>
+    html:`<p>Restez en <b>mode simulation</b>. Lancez chaque ping depuis la machine indiquée dans sa <b>Ligne de commande</b> (icône sur le bureau), puis notez si la réponse est <b>réussie ou non</b>. Pour cette question, augmentez la vitesse des paquets (curseur au-dessus du plan).</p>
     <table class="m">
       <tr><th>Depuis</th><th>Vers</th><th>Résultat</th></tr>
       ${ROWS.map(r => `<tr><td>${r.from}</td><td>${r.to}</td><td>
@@ -137,15 +145,19 @@ const STEPS = [
       t:s => { const rec = lastStats(s.out, r.src, r.dst); return rec !== null && ((rec > 0) === (answers[r.k] === 'ok')); }
     })) },
   { t:'La passerelle',
-    html:`<p>Le Portable fonctionne déjà vers l'extérieur. Relevez sa <b>passerelle</b> dans sa configuration IP, puis reportez cette adresse comme passerelle de l'<b>Ordinateur</b>. Puis tapez <code>ping 192.168.140.1</code> depuis l'Ordinateur et observez le trajet du paquet.</p>`,
+    html:`<p>Le Portable fonctionne déjà vers l'extérieur. En mode conception, cliquez sur le Portable et relevez sa <b>passerelle</b> dans le panneau Configuration. Reportez cette adresse comme passerelle de l'<b>Ordinateur</b>, puis revenez en <b>mode simulation</b>.</p>
+    <p>Sur l'Ordinateur, ouvrez la <b>Ligne de commande</b> et tapez <code>ping 192.168.140.1</code>. Observez le trajet du paquet sur le plan.</p>`,
     checks:[
       { l:"Passerelle du Portable reportée sur l'Ordinateur", t:s => !!s.nodes.PC && !!s.nodes.NB && s.nodes.PC.gw !== '' && s.nodes.PC.gw === s.nodes.NB.gw },
       { l:"Ping de l'Ordinateur vers 192.168.140.1 réussi", t:s => (lastStats(s.out, 'PC', '192.168.140.1') || 0) > 0 }
     ] },
   { t:'Le site et le serveur DNS',
-    html:`<p>Sur le Portable, ouvrez le <b>navigateur</b> et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
-    <p>Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (configuration IP), puis retapez le nom dans le navigateur, et lancez <code>ping ${SITE}</code> dans l'invite de commandes.</p>`,
+    html:`<p>Le serveur DNS et le serveur Web sont des <b>serveurs</b> (palette « Serveur »), déjà en place.</p>
+    <p><b>1. Installez le navigateur sur le Portable.</b> Cliquez sur le Portable dans le plan : son bureau s'affiche. Ouvrez <b>Installation des logiciels</b>, sélectionnez le <b>Navigateur web</b> et installez-le.</p>
+    <p><b>2.</b> Ouvrez le <b>Navigateur web</b> du Portable et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
+    <p><b>3.</b> Tapez ensuite <code>${SITE}</code> : cela ne marche pas. Le serveur DNS de l'opérateur est <b>192.168.140.1</b> : réglez-le sur les deux machines (panneau Configuration, en mode conception). Revenez en mode simulation, retapez le nom dans le navigateur, puis lancez <code>ping ${SITE}</code> dans la Ligne de commande.</p>`,
     checks:[
+      { l:"Navigateur web installé sur le Portable", t:s => !!s.nodes.NB && s.nodes.NB.sw.indexOf('nav') >= 0 },
       { l:"Serveur DNS 192.168.140.1 réglé sur les deux machines", t:s => !!s.nodes.PC && !!s.nodes.NB && s.nodes.PC.dns === '192.168.140.1' && s.nodes.NB.dns === '192.168.140.1' },
       { l:`Ping de ${SITE} réussi (par le nom)`, t:s => ['PC', 'NB'].some(h => (s.out[h] || []).some(x => x.indexOf('sur ' + SITE + ' [') >= 0) && (lastStats(s.out, h, '192.168.21.1') || 0) > 0) },
       { l:"Page du site affichée dans le navigateur (vérifié par vous)", self:true }
@@ -188,6 +200,7 @@ function checksHTML() {
 
 function render() {
   const st = STEPS[step];
+  document.body.classList.toggle('bilan', !!st.recap);
   document.getElementById('stepNo').textContent = `Étape ${step + 1} sur ${STEPS.length}`;
   document.getElementById('stepTitle').textContent = st.t;
   document.getElementById('stepBody').innerHTML = st.html + '<div id="chk">' + checksHTML() + '</div>';
