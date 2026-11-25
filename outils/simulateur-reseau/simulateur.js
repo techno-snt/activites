@@ -1913,13 +1913,65 @@
       if (t.getAttribute('data-host') === hostId) fillTermApp(t, hostId);
     });
   }
+  function buildAppWin(a, screen) {
+    return a.type === 'term' ? buildTerm(a, screen) : a.type === 'trames' ? buildTrames(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : a.type === 'fich' ? buildFich(a, screen) : a.type === 'img' ? buildImg(a, screen) : buildInstall(a, screen);
+  }
+  // Smartphone, tablette et smart TV : leur propre écran, sans barre des tâches d'ordinateur
+  function buildDevice(w, h, kind) {
+    var isTv = kind === 'tv', tablet = h.kind === 'tablet';
+    var on = netOk(h);
+    var win = document.createElement('section');
+    win.className = 'dwin desk dev ' + (isTv ? 'tv' : tablet ? 'tablet' : 'phone');
+    win.setAttribute('aria-label', 'Écran de ' + h.label);
+    win.appendChild(winHead(w, h.label));
+    var frame = document.createElement('div'); frame.className = 'dev-frame';
+    if (isTv) {
+      var tvs = document.createElement('div'); tvs.className = 'tv-screen' + (on ? ' on' : '');
+      var big = document.createElement('p'); big.className = 'tv-msg';
+      var sub = document.createElement('p'); sub.className = 'tv-sub';
+      if (on) { big.textContent = 'Smart TV'; sub.textContent = 'Connectée au réseau · ' + h.ifaces[0].ip; }
+      else { big.textContent = 'Pas connectée'; sub.textContent = 'Aucune connexion au réseau.'; }
+      tvs.appendChild(big); tvs.appendChild(sub);
+      frame.appendChild(tvs);
+    } else {
+      var screen = document.createElement('div'); screen.className = 'dev-screen';
+      var f = h.ifaces[0];
+      var st = document.createElement('div'); st.className = 'dev-status';
+      var sl = document.createElement('span'); sl.textContent = on ? (f.wifi ? 'Wi-Fi · ' + f.ssid : 'Réseau filaire') : 'Pas de réseau';
+      var sr = document.createElement('span'); sr.textContent = f.ip || 'sans IP';
+      st.appendChild(sl); st.appendChild(sr); screen.appendChild(st);
+      var grid = document.createElement('div'); grid.className = 'dev-apps';
+      var nav = softOf('nav');
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'dev-app';
+      var t = document.createElement('span'); t.className = 'tile ' + nav.cls; t.textContent = nav.tile;
+      var l = document.createElement('span'); l.textContent = 'Navigateur';
+      b.appendChild(t); b.appendChild(l);
+      b.addEventListener('click', function () { openWin('nav', h.id); });
+      grid.appendChild(b); screen.appendChild(grid);
+      var home = document.createElement('div'); home.className = 'dev-home'; screen.appendChild(home);
+      WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
+        screen.appendChild(buildAppWin(a, screen));
+      });
+      frame.appendChild(screen);
+    }
+    win.appendChild(frame);
+    // Position : les écrans d'appareils ne se superposent pas à l'ouverture ; leur taille est celle de leur cadre
+    if (w.x === undefined) {
+      var di = WINS.filter(function (x) { return x.type === 'desk'; }).indexOf(w);
+      w.x = 12 + (di % 3) * 300; w.y = 12 + Math.floor(di / 3) * 470;
+    }
+    decorateWin(win, w, deskZone);
+    win.style.width = ''; win.style.height = '';
+    return win;
+  }
   function buildDesk(w) {
     var h = N(w.host);
+    var kind = deskKind(h);
+    if (kind === 'mobile' || kind === 'tv') return buildDevice(w, h, kind);
     var win = document.createElement('section'); win.className = 'dwin desk'; win.setAttribute('aria-label', 'Bureau de ' + h.label);
     win.appendChild(winHead(w, 'Bureau · ' + h.label + ' (' + (h.ifaces[0].ip || 'pas d\'IP') + ')'));
     var screen = document.createElement('div'); screen.className = 'desk-screen';
     var grid = document.createElement('div'); grid.className = 'desk-icons';
-    var kind = deskKind(h);
     var apps = kind === 'pc'
       ? [{ id: 'install', label: 'Installation des logiciels', tile: '+', cls: 'inst' }, { id: 'trames', label: 'Échanges de données', tile: 'Tr', cls: 'net' }].concat(SOFT.filter(function (s) { return hasSoft(h, s.id); }))
       : kind === 'mobile' ? [softOf('nav')] : [];
@@ -1973,7 +2025,7 @@
     win.appendChild(screen);
     // Applications ouvertes sur cette machine : elles sont dans l'écran du bureau
     WINS.filter(function (a) { return a.type !== 'desk' && a.host === w.host && !a.min; }).forEach(function (a) {
-      screen.appendChild(a.type === 'term' ? buildTerm(a, screen) : a.type === 'trames' ? buildTrames(a, screen) : a.type === 'nav' ? buildNav(a, screen) : a.type === 'edit' ? buildEdit(a, screen) : a.type.indexOf('svc-') === 0 ? buildSvc(a, screen) : a.type === 'fich' ? buildFich(a, screen) : a.type === 'img' ? buildImg(a, screen) : buildInstall(a, screen));
+      screen.appendChild(buildAppWin(a, screen));
     });
     decorateWin(win, w, deskZone);
     return win;
