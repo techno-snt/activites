@@ -109,6 +109,11 @@
     if (linkAt(a.n, a.i) || linkAt(b.n, b.i)) return { ok: false, msg: 'Ce port est déjà branché.' };
     if (wirelessNode(N(a.n)) || wirelessNode(N(b.n))) return { ok: false, msg: (wirelessNode(N(a.n)) ? N(a.n) : N(b.n)).label + ' se connecte en Wi-Fi : il ne se relie pas par câble.' };
     LINKS.push({ a: { n: a.n, i: a.i }, b: { n: b.n, i: b.i } });
+    // Port W de la box branché sur l'opérateur : la box reprend le DNS de l'opérateur
+    var ends = [{ n: N(a.n), i: a.i }, { n: N(b.n), i: b.i }];
+    var op = ends.find(function (x) { return x.n && x.n.kind === 'operator'; });
+    var bx = ends.find(function (x) { return x.n && x.n.kind === 'box' && x.i === 1; });
+    if (op && bx && op.n.ifaces[0].ip) bx.n.wanDns = op.n.ifaces[0].ip;
     return { ok: true };
   }
 
@@ -224,11 +229,24 @@
     return { ok: true, msg: 'Réponse de ' + dstIP, legs: legs, dstNode: r1.dstNode, ip: dstIP };
   }
 
+  // Serveur DNS joignable à cette adresse (n'importe laquelle des interfaces du nœud)
+  function dnsServerAt(ip) {
+    return NODES.find(function (n) { return n.dnsSvc && (n.ifaces || []).some(function (f) { return f.ip === ip; }); });
+  }
+  // Enregistrements DNS éditables sous forme « nom=adresse, nom=adresse »
+  var DNS_BOX_HELP = 'DNS fourni par l\'opérateur, repris automatiquement quand la box est branchée sur l\'opérateur. La box le transmet à ses appareils par DHCP. Modifiable.';
+  function dnsText(n) { return Object.keys(n.records || {}).map(function (k) { return k + '=' + n.records[k]; }).join(', '); }
+  function setRecords(n, text) {
+    var r = {};
+    text.split(',').forEach(function (p) { var kv = p.split('='); if (kv.length === 2 && kv[0].trim() && ipOK(kv[1].trim())) r[kv[0].trim()] = kv[1].trim(); });
+    n.records = r;
+  }
+
   function resolveCore(hostId, name) {
     var h = N(hostId);
     if (ipOK(name)) return { ok: true, ip: name };
     if (!h.dns) return { ok: false, msg: 'Nom « ' + name + ' » inconnu : aucun serveur DNS configuré sur ' + h.label + '.' };
-    var dnsNode = NODES.find(function (n) { return n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc; });
+    var dnsNode = dnsServerAt(h.dns);
     if (!dnsNode) return { ok: false, msg: 'Serveur DNS ' + h.dns + ' introuvable.' };
     // La requête DNS part sur le schéma : l'appelant doit faire voyager les paquets (r.legs) avant d'afficher le résultat
     var q = pingCore(hostId, h.dns, 'Requête DNS : ' + name);
@@ -398,7 +416,7 @@
     tv: { label: 'Smart TV', type: 'pc', sansFil: true },
     iot: { label: 'Objet connecté', type: 'pc', sansFil: true },
     // Nœuds virtuels : Internet n'est pas simulé en détail, ils représentent l'opérateur et les serveurs distants
-    operator: { label: 'Opérateur internet', type: 'router', virtual: true },
+    operator: { label: 'Opérateur internet', type: 'router', virtual: true, operator: true },
     datacenter: { label: 'Datacenter', type: 'pc', virtual: true },
   };
   // Routeur Wi-Fi ou Box : ils diffusent un réseau sans fil (SSID et mot de passe)
@@ -438,6 +456,11 @@
         n.ifaces[0].ip = '192.168.1.1'; n.ifaces[0].mask = '255.255.255.0';
         n.dhcpSvc = true; n.pool = { start: '192.168.1.10', end: '192.168.1.100' };
         n.dhcpGw = '192.168.1.1'; n.dhcpDns = ''; n.leases = {}; n.software = ['dhcp'];
+      }
+      if (k.operator) {
+        // Opérateur : routeur de l'accès Internet, avec un service DNS qui connaît les sites publics
+        n.ifaces[0].ip = '203.0.113.1'; n.ifaces[0].mask = '255.255.255.0';
+        n.dnsSvc = true; n.records = {}; n.software = ['dns'];
       }
     } else if (k.type !== 'switch') {
       n.ifaces = [{ ip: '' }]; n.gw = ''; n.dns = '';
@@ -1335,7 +1358,7 @@
       field(propsEl, 'Côté opérateur : adresse IP', n.ifaces[1].ip, ipChange(function (v) { n.ifaces[1].ip = v; }));
       field(propsEl, 'Côté opérateur : masque', maskOf(n.ifaces[1]), maskChange(function (v) { n.ifaces[1].mask = v; }));
       field(propsEl, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-      if (n.kind === 'box') field(propsEl, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), 'DNS fourni par l\'opérateur. La box le transmet à ses appareils par DHCP.');
+      if (n.kind === 'box') field(propsEl, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
     } else if (n.type === 'router') {
       var tabs = document.createElement('div'); tabs.className = 'ptabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Sections de configuration');
       var TABS = [['iface', 'Interfaces'], ['conn', 'Connexions'], ['route', 'Routes']];
@@ -1399,7 +1422,8 @@
       rem.addEventListener('click', function () { n.ifaces.pop(); setStatus('Interface retirée.'); refresh(); });
       bar.appendChild(add); bar.appendChild(rem); ip.appendChild(bar);
       field(ip, 'Route par défaut : passerelle', n.defGw, ipChange(function (v) { n.defGw = v; }), 'Adresse du routeur vers lequel envoyer ce qui ne reste pas dans les réseaux connus.');
-      if (n.kind === 'box') field(ip, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), 'DNS fourni par l\'opérateur. La box le transmet à ses appareils par DHCP.');
+      if (n.kind === 'box') field(ip, 'DNS de l\'opérateur', n.wanDns, ipChange(function (v) { n.wanDns = v; }), DNS_BOX_HELP);
+      if (n.dnsSvc) field(ip, 'Enregistrements DNS', dnsText(n), function (inp) { setRecords(n, inp.value); setStatus('Enregistrements DNS mis à jour.'); draw(); }, 'Les noms connus de ce serveur, séparés par des virgules : nom=adresse. Ex. www.monsite-snt.fr=203.0.113.10');
       var fwWrap = document.createElement('div'); fwWrap.className = 'field check';
       var fwCb = document.createElement('input'); fwCb.type = 'checkbox'; fwCb.id = 'f' + (++fid); fwCb.checked = n.forward !== false;
       fwCb.addEventListener('change', function () { n.forward = fwCb.checked; setStatus(fwCb.checked ? 'Routage des paquets activé.' : 'Routage des paquets désactivé : les paquets ne traversent plus ce routeur.'); });
@@ -2116,7 +2140,7 @@
   // Recherche inverse (ping -a) : nom enregistré pour une adresse, sur le serveur DNS
   function ptrCore(hostId, ip) {
     var h = N(hostId);
-    var dnsNode = h.dns && NODES.find(function (n) { return n.ifaces && n.ifaces[0] && n.ifaces[0].ip === h.dns && n.dnsSvc; });
+    var dnsNode = h.dns && dnsServerAt(h.dns);
     if (!dnsNode) return { ok: false, msg: 'Aucun serveur DNS joignable.', legs: [] };
     var q = pingCore(hostId, h.dns, 'Requête DNS inverse : ' + ip);
     if (!q.ok) return { ok: false, msg: 'Serveur DNS injoignable.', legs: q.legs };
