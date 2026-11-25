@@ -1541,8 +1541,9 @@
   ];
   var softOf = function (id) { return SOFT.find(function (s) { return s.id === id; }); };
   // Interface en simulation selon l'appareil : pc (bureau complet), mobile (navigateur seul),
-  // tv (état de connexion seul), none (pas d'interface : imprimante, enceinte connectée)
+  // tv (état de connexion seul), none (pas d'interface : imprimante, enceinte connectée, fournisseur, datacenter)
   function deskKind(h) {
+    if (h.kind === 'fai' || h.kind === 'datacenter') return 'none';
     if (h.kind === 'smartphone' || h.kind === 'tablet') return 'mobile';
     if (h.kind === 'tv') return 'tv';
     if (h.kind === 'printer' || h.kind === 'iot') return 'none';
@@ -1580,8 +1581,8 @@
   function openWin(type, hostId, extra) {
     if (!isSim()) return;
     var h = N(hostId);
+    if (type === 'desk' && h && deskKind(h) === 'none') { setStatus(h.label + ' : pas d\'interface en mode simulation.'); return; }
     if (!h || h.type === 'switch' || h.type === 'router') return;
-    if (type === 'desk' && deskKind(h) === 'none') { setStatus(h.label + ' : pas d\'interface en mode simulation.'); return; }
     var ex = WINS.find(function (w) { return w.type === type && w.host === hostId && (!extra || w.file === extra.file); });
     if (ex) ex.min = false;
     if (!ex) {
