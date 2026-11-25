@@ -72,6 +72,33 @@
   .kc h3 { margin:0 0 4px; font-size:1.05rem; color:var(--acc); }
   .kc p { margin:0; font-size:.98rem; }
   .rule { margin-top:18px; padding:14px 16px; border-left:5px solid var(--ok); background:#f1faf4; border-radius:6px; font-size:1.02rem; }
+  /* Fiche de synthèse (bilan) */
+  .fiche { max-width:1000px; margin:0 auto; color:#111; }
+  .fh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:3px solid var(--acc); padding-bottom:10px; margin-bottom:6px; }
+  .fh h2 { margin:0; font-size:1.7rem; color:var(--acc); }
+  .fh p { margin:2px 0 0; color:var(--muted); }
+  .fmeta { font-size:.95rem; line-height:1.9; text-align:right; }
+  .fiche h3 { font-size:1.15rem; color:var(--acc); margin:20px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+  table.synth { width:100%; border-collapse:collapse; font-size:.98rem; }
+  table.synth th { background:var(--acc); color:#fff; text-align:left; padding:8px 10px; }
+  table.synth td { border-bottom:1px solid var(--line); padding:8px 10px; vertical-align:top; }
+  table.synth tr:nth-child(even) td { background:#f6f8fb; }
+  ol.chemin { padding-left:0; list-style:none; counter-reset:c; }
+  ol.chemin li { counter-increment:c; position:relative; padding:8px 0 8px 40px; border-bottom:1px dashed var(--line); }
+  ol.chemin li::before { content:counter(c); position:absolute; left:0; top:6px; width:28px; height:28px; border-radius:50%; background:var(--acc); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  ul.cl { list-style:none; padding:0; margin:0; }
+  ul.cl li { padding:6px 0 6px 28px; position:relative; }
+  ul.cl li::before { content:'☐'; position:absolute; left:0; color:var(--acc); font-size:1.1rem; }
+  .q { margin:10px 0 2px; font-weight:600; }
+  .ligne { border-bottom:1px solid #9aa3b2; height:28px; }
+  .ft { margin-top:22px; text-align:right; }
+  @media print {
+    header, .steps-card .checks, .sim-card, .ft { display:none !important; }
+    body.bilan main { padding:0 !important; }
+    body.bilan .steps-card { border:0 !important; padding:0 !important; }
+    .fiche h3 { break-after:avoid; }
+    .ligne { height:22px; }
+  }
 </style>
 </head>
 <body>
@@ -168,9 +195,9 @@ const STEPS = [
     <p><b>1. Installez le navigateur sur le Portable.</b> Cliquez sur le Portable dans le plan : son bureau s'affiche. Ouvrez <b>Installation des logiciels</b>, sélectionnez le <b>Navigateur web</b> et installez-le.</p>
     <p><b>2.</b> Ouvrez le <b>Navigateur web</b> du Portable et tapez <code>192.168.21.1</code> : la page du site s'affiche.</p>
     <p><b>3.</b> Tapez <code>${SITE}</code> : cela ne marche pas, le serveur DNS ne connaît pas encore ce nom.</p>
-    <p><b>4. Ajoutez la correspondance sur le serveur DNS.</b> En mode conception, cliquez sur le Serveur DNS. Dans le panneau Configuration, champ <b>Enregistrements DNS</b>, écrivez <code>${SITE}=192.168.21.1</code>.</p>
-    <p><b>5. Démarrez le service DNS.</b> Dans le bureau du Serveur DNS, ouvrez le service DNS et cliquez sur <b>Démarrer le service</b>. Un service arrêté ne répond à aucune machine.</p>
-    <p><b>6. Réglez le DNS.</b> Sur les deux machines, indiquez le serveur DNS <b>192.168.140.1</b> (panneau Configuration). Revenez en mode simulation, retapez le nom dans le navigateur, puis lancez <code>ping ${SITE}</code> dans la Ligne de commande.</p>`,
+    <p><b>4. Ajoutez la correspondance sur le serveur DNS.</b> En <b>mode simulation</b>, cliquez sur le Serveur DNS dans le plan : son bureau s'affiche. Ouvrez l'application <b>Serveur DNS</b> et, dans <b>Adresse (A)</b>, saisissez le nom <code>${SITE}</code> et l'adresse <code>192.168.21.1</code>, puis cliquez sur <b>Ajouter</b>.</p>
+    <p><b>5. Démarrez le service DNS.</b> Dans la fenêtre <b>Serveur DNS</b>, cliquez sur <b>Démarrer le service</b>. Un service arrêté ne répond à aucune machine.</p>
+    <p><b>6. Réglez le DNS.</b> Repassez en <b>mode conception</b> : sur les deux machines, indiquez le serveur DNS <b>192.168.140.1</b> dans le panneau Configuration. Revenez en mode simulation, retapez le nom dans le navigateur, puis lancez <code>ping ${SITE}</code> dans la Ligne de commande.</p>`,
     checks:[
       { l:"Navigateur web installé sur le Portable", t:s => !!s.nodes.NB && s.nodes.NB.sw.indexOf('nav') >= 0 },
       { l:`Correspondance ${SITE} = 192.168.21.1 ajoutée sur le serveur DNS`, t:s => !!s.nodes.DNS && s.nodes.DNS.rec[SITE] === '192.168.21.1' },
@@ -180,25 +207,48 @@ const STEPS = [
       { l:"Page du site affichée dans le navigateur (vérifié par vous)", self:true }
     ] },
   { t:'Bilan', recap:true,
-    html:`<div class="bilan">
-      <h2 class="bt">Ce qu'il faut retenir</h2>
-      <div class="flow">
-        <div class="fn"><b>Portable</b><small>demande un site</small></div><span class="ar">→</span>
-        <div class="fn"><b>Serveur DNS</b><small>nom → adresse IP</small></div><span class="ar">→</span>
-        <div class="fn"><b>Box</b><small>passerelle, NAT</small></div><span class="ar">→</span>
-        <div class="fn"><b>Opérateur</b><small>routeur</small></div><span class="ar">→</span>
-        <div class="fn"><b>Serveur web</b><small>page affichée</small></div>
-      </div>
-      <div class="cards">
-        <div class="kc"><div class="num">1</div><h3>Adresse IP</h3><p>Identifie chaque machine. Les trois premiers nombres désignent le réseau.</p></div>
-        <div class="kc"><div class="num">2</div><h3>Switch</h3><p>Relie les machines d'un même réseau : elles se parlent directement.</p></div>
-        <div class="kc"><div class="num">3</div><h3>Passerelle</h3><p>Fait sortir un paquet vers un autre réseau. Une machine ne l'utilise que hors de son réseau.</p></div>
-        <div class="kc"><div class="num">4</div><h3>Box et NAT</h3><p>Remplacent l'adresse de départ par celle de la box, et retiennent qui a envoyé quoi pour que la réponse revienne.</p></div>
-        <div class="kc"><div class="num">5</div><h3>Serveur DNS</h3><p>Traduit un nom (${SITE}) en adresse IP avant toute connexion. Il doit être démarré pour répondre.</p></div>
-        <div class="kc"><div class="num">6</div><h3>Ping</h3><p>Envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</p></div>
-      </div>
-      <div class="rule"><b>Pour qu'une machine joigne un site d'un autre réseau</b>, il faut une adresse IP, une passerelle, un serveur DNS qui connaît le nom, et un serveur web qui répond.</div>
-    </div>` }
+    html:`<article class="fiche">
+      <header class="fh">
+        <div><h2>Fiche de synthèse</h2><p>Simulation de réseau : adresse IP, passerelle, DNS</p></div>
+        <div class="fmeta">Nom : ____________________<br>Classe : ________</div>
+      </header>
+
+      <h3>1. Les notions</h3>
+      <table class="synth">
+        <tr><th>Notion</th><th>Rôle</th><th>Dans la simulation</th></tr>
+        <tr><td><b>Adresse IP</b></td><td>Identifie une machine. Les trois premiers nombres désignent son réseau.</td><td>Ordinateur 192.168.0.11 ; Portable 192.168.0.10</td></tr>
+        <tr><td><b>Switch</b></td><td>Relie les machines d'un même réseau : elles se parlent directement.</td><td>Switch du réseau de la maison</td></tr>
+        <tr><td><b>Passerelle</b></td><td>Fait sortir un paquet vers un autre réseau. Une machine ne l'utilise que hors de son réseau.</td><td>192.168.0.254 (la box)</td></tr>
+        <tr><td><b>Box et NAT</b></td><td>Remplacent l'adresse de départ par celle de la box, et retiennent qui a envoyé quoi.</td><td>192.168.140.100 côté opérateur</td></tr>
+        <tr><td><b>Serveur DNS</b></td><td>Traduit un nom de site en adresse IP. Il doit être démarré pour répondre.</td><td>${SITE} → 192.168.21.1</td></tr>
+        <tr><td><b>Ping</b></td><td>Envoie une demande et attend la réponse : il teste le chemin aller et le chemin retour.</td><td>Ligne de commande de chaque machine</td></tr>
+      </table>
+
+      <h3>2. Le chemin d'une visite de site</h3>
+      <ol class="chemin">
+        <li>Le Portable demande au serveur DNS (192.168.140.1) l'adresse de ${SITE}.</li>
+        <li>Le serveur DNS répond : 192.168.21.1.</li>
+        <li>Le Portable envoie sa requête à sa passerelle, la box.</li>
+        <li>La box transmet au routeur de l'opérateur, qui fait parvenir la requête au serveur web.</li>
+        <li>Le serveur web renvoie la page, qui s'affiche dans le navigateur.</li>
+      </ol>
+
+      <h3>3. Pour joindre un site d'un autre réseau, il faut</h3>
+      <ul class="cl">
+        <li>une adresse IP sur chaque machine ;</li>
+        <li>une passerelle pour sortir du réseau local ;</li>
+        <li>un serveur DNS qui connaît le nom, et qui est démarré ;</li>
+        <li>un serveur web qui répond à l'adresse IP trouvée.</li>
+      </ul>
+
+      <h3>4. Mes réponses</h3>
+      <p class="q">Pourquoi le ping vers 192.168.140.1 échoue-t-il depuis l'Ordinateur avant le réglage de la passerelle ?</p>
+      <div class="ligne"></div><div class="ligne"></div>
+      <p class="q">Que se passe-t-il si le service DNS est arrêté ?</p>
+      <div class="ligne"></div><div class="ligne"></div>
+
+      <div class="ft"><button class="sec" onclick="window.print()">Imprimer la fiche</button></div>
+    </article>` }
 ];
 
 let step = 0;
