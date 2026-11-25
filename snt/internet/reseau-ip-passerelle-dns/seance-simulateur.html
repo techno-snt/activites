@@ -19,10 +19,28 @@
   button { padding:6px 10px; border:0; border-radius:5px; background:var(--acc); color:#fff; font:inherit; font-size:.9rem; cursor:pointer; }
   button:disabled { opacity:.45; cursor:default; }
   button.sec { background:#e7ebf2; color:var(--fg); }
-  main { display:flex; flex-direction:column; gap:12px; padding:12px; }
-  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; }
-  .card h2 { font-size:.95rem; margin:0 0 6px; color:var(--acc); }
-  iframe.sim { width:100%; height:640px; border:1px solid var(--line); border-radius:6px; background:#fbfcfd; }
+  main { display:flex; flex-direction:column; gap:10px; padding:10px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; min-height:0; }
+  .card h2 { font-size:.95rem; margin:0 0 6px; color:var(--acc); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .card h2 button { font-size:.8rem; padding:4px 8px; }
+  .steps-card { overflow:auto; font-size:.92rem; }
+  .steps-card #stepBody p { margin:4px 0; }
+  .steps-card .checks li { font-size:.9rem; margin:4px 0; }
+  .sim-card { display:flex; flex-direction:column; }
+  iframe.sim { width:100%; flex:1; min-height:480px; height:70vh; border:1px solid var(--line); border-radius:6px; background:#fbfcfd; }
+  /* Grand écran : étapes à gauche, simulateur qui occupe toute la hauteur disponible */
+  @media (min-width:1000px) {
+    main { display:grid; grid-template-columns:minmax(300px,380px) minmax(0,1fr); height:calc(100vh - 58px); padding:8px; gap:10px; }
+    .steps-card { height:100%; }
+    .sim-card { height:100%; }
+    iframe.sim { height:auto; min-height:0; }
+  }
+  /* Petits écrans (ordinateurs élèves) : le simulateur reste le plus grand possible */
+  @media (max-width:999px) {
+    header { padding:6px 10px; }
+    h1 { font-size:.95rem; }
+    .chip { font-size:.78rem; padding:4px 8px; }
+  }
   .legend { font-size:.82rem; color:var(--muted); margin-top:6px; }
   .plan li { margin:4px 0; }
   .checks ul { list-style:none; padding:0; margin:8px 0 0; }
@@ -48,15 +66,15 @@
 </header>
 
 <main>
-  <div class="card">
+  <div class="card steps-card">
     <div id="stepNo" style="font-size:.85rem;color:var(--muted)"></div>
-    <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 6px"></h2>
+    <h2 id="stepTitle" style="font-size:1.05rem;margin:0 0 6px;display:block"></h2>
     <div id="stepBody"></div>
   </div>
 
-  <div class="card">
-    <h2>Simulateur réseau</h2>
-    <iframe class="sim" id="sim" src="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" title="Simulateur réseau"></iframe>
+  <div class="card sim-card">
+    <h2>Simulateur réseau <button class="sec" onclick="fullSim()">Agrandir</button></h2>
+    <iframe class="sim" id="sim" src="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" title="Simulateur réseau" allow="fullscreen"></iframe>
     <div class="legend">Si le cadre reste vide, <a href="https://techno-snt.github.io/activites/outils/simulateur-reseau/?scenario=seance" target="_blank" rel="noopener">ouvrir le simulateur dans un nouvel onglet</a> (dans ce cas la vérification automatique ne fonctionne pas).</div>
   </div>
 </main>
@@ -193,6 +211,7 @@ function setStep(i) {
   step = i; render(); window.scrollTo({ top:0, behavior:'smooth' });
 }
 function go(d) { setStep(step + d); }
+function fullSim() { const f = document.getElementById('sim'); if (f.requestFullscreen) f.requestFullscreen(); }
 
 render();
 setInterval(updateChecks, 1000);
